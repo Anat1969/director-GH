@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Edit2, Save, X, Plus, Upload } from 'lucide-react';
 
 const COLORS = {
   harbourBlue: '#1a4d7a',
@@ -15,7 +16,7 @@ const COLORS = {
   darkBlue: '#0d2b45',
 };
 
-const TYPOLOGIES = [
+const DEFAULT_TYPOLOGIES = [
   {
     id: 1,
     number: '01',
@@ -26,8 +27,8 @@ const TYPOLOGIES = [
     clothingInterpretation: 'שכבות שקופות, בדים חדשים שלא נראו קודם, קווי תנועה אופקיים שמסמנים כיוון. הבד הוא כמו קוד — שקוף לעין אבל בנוי בדיוק.',
     ashdodContext: 'אזור התעשייה, הטכנולוגיה, החדשנות שנשמרת בעדינות בין מפעלים ישנים לסטארטאפים חדשים.',
     images: ['/images/teacher-male-00.png', '/images/teacher-male-01.png'],
-    accentColor: COLORS.coralTeal,
-    layout: 'split',
+    videoSrc: '',
+    accentColor: '#2a9b9f',
   },
   {
     id: 2,
@@ -39,8 +40,8 @@ const TYPOLOGIES = [
     clothingInterpretation: 'בדים שונים יחד בחיבורים חזקים. כל טלאי מביא את הסיפור שלו, וביחד הם יוצרים שמיכה שמחממת את כולם.',
     ashdodContext: 'תרבויות רבות ועדות שונות בעיר אחת. אשדוד היא פסיפס של קהילות — מרוקו, אתיופיה, רוסיה, צרפת — וכולן ביחד.',
     images: ['/images/teacher-warm-00.png', '/images/teacher-warm-01.png'],
-    accentColor: COLORS.apricotRed,
-    layout: 'overlap',
+    videoSrc: '',
+    accentColor: '#c85a36',
   },
   {
     id: 3,
@@ -52,8 +53,8 @@ const TYPOLOGIES = [
     clothingInterpretation: 'צבעים מעבירים, קווי עקומה, פרטים לא צפויים. הבגד הוא לא מה שציפית — הוא מה שלא ידעת שאתה רוצה.',
     ashdodContext: 'תרבות אוכל, אומנות ומוזיקה בעיר. מהפסטיבלים ברובע הישן ועד הגלריות החדשות.',
     images: ['/images/teacher-warm-02.png', '/images/teacher-warm-03.png'],
-    accentColor: COLORS.duneGreen,
-    layout: 'editorial',
+    videoSrc: '',
+    accentColor: '#8a9b7f',
   },
   {
     id: 4,
@@ -65,8 +66,8 @@ const TYPOLOGIES = [
     clothingInterpretation: 'שכבות שונות בעומק, דואליות יפה. הבגד מכיל בתוכו סיפורים שונים — ישנים וחדשים, קלים וכבדים.',
     ashdodContext: 'חרדי חילוני, ימין שמאל, צעיר מבוגר — אשדוד היא כל זה ביחד, בלי לוותר על אף חלק.',
     images: ['/images/teacher-powerful-00.png', '/images/teacher-powerful-02.png'],
-    accentColor: COLORS.harbourBlue,
-    layout: 'fullbleed',
+    videoSrc: '',
+    accentColor: '#1a4d7a',
   },
   {
     id: 5,
@@ -78,8 +79,8 @@ const TYPOLOGIES = [
     clothingInterpretation: 'תפרים חזקים ברקע, מבנה יציב וקלילות. הבגד נראה קל אבל מחזיק חזק — כמו נייר שעמד בגשם.',
     ashdodContext: 'הנמל שעמד במשברים, חוסן הקהילה שעברה מלחמות ועדיין עומדת.',
     images: ['/images/teacher-male-02.png', '/images/teacher-male-03.png', '/images/teacher-male-03b.png'],
-    accentColor: COLORS.apricotRed,
-    layout: 'mosaic',
+    videoSrc: '',
+    accentColor: '#c85a36',
   },
   {
     id: 6,
@@ -91,15 +92,49 @@ const TYPOLOGIES = [
     clothingInterpretation: 'איזון בין יציבה לתנועה, קדימה בביטחון. הבגד מאפשר ללכת קדימה — רגליים על הקרקע, ראש בעננים.',
     ashdodContext: 'אשדוד בעיקר, אבל בעיניים על העולם. מהנמל יוצאות ספינות לכל כיוון.',
     images: ['/images/teacher-female-01.png', '/images/teacher-powerful-03.png'],
-    accentColor: COLORS.coralTeal,
-    layout: 'panoramic',
+    videoSrc: '',
+    accentColor: '#2a9b9f',
   },
 ];
 
-function CoverPage({ onEnter }) {
+const TOTAL_PAGES = 9; // cover + toc + 6 typologies + closing
+
+// ─── Editable Text Component ───
+function EditableText({ value, onSave, editMode, style, tag: Tag = 'p' }) {
+  const ref = useRef(null);
+
+  const handleBlur = () => {
+    if (editMode && ref.current) {
+      const newVal = ref.current.innerText;
+      if (newVal !== value) onSave(newVal);
+    }
+  };
+
   return (
-    <section style={{
-      minHeight: '100vh',
+    <Tag
+      ref={ref}
+      contentEditable={editMode}
+      suppressContentEditableWarning
+      onBlur={handleBlur}
+      style={{
+        ...style,
+        outline: 'none',
+        borderBottom: editMode ? '1px dashed rgba(200,90,54,0.4)' : 'none',
+        cursor: editMode ? 'text' : 'default',
+        minHeight: editMode ? '1em' : undefined,
+      }}
+    >
+      {value}
+    </Tag>
+  );
+}
+
+// ─── Cover Page ───
+function CoverPage() {
+  return (
+    <div style={{
+      width: '100%',
+      height: '100%',
       background: `linear-gradient(160deg, ${COLORS.darkBlue} 0%, ${COLORS.harbourBlue} 40%, ${COLORS.coralTeal} 100%)`,
       display: 'flex',
       flexDirection: 'column',
@@ -107,10 +142,7 @@ function CoverPage({ onEnter }) {
       alignItems: 'center',
       position: 'relative',
       overflow: 'hidden',
-      cursor: 'pointer',
-    }}
-    onClick={onEnter}
-    >
+    }}>
       <div style={{
         position: 'absolute',
         inset: 0,
@@ -211,341 +243,30 @@ function CoverPage({ onEnter }) {
           <span>{'2024'}</span>
         </div>
       </div>
-
-      <div style={{
-        position: 'absolute',
-        bottom: '40px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px',
-        animation: 'bounce 2s infinite',
-      }}>
-        <span style={{
-          fontSize: '11px',
-          letterSpacing: '3px',
-          color: 'rgba(255,255,255,0.4)',
-          textTransform: 'uppercase',
-        }}>
-          {'גלול למטה'}
-        </span>
-        <div style={{
-          width: '1px',
-          height: '30px',
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.4), transparent)',
-        }} />
-      </div>
-
-      <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateX(-50%) translateY(0); }
-          50% { transform: translateX(-50%) translateY(8px); }
-        }
-      `}</style>
-    </section>
+    </div>
   );
 }
 
-function TypologySpread({ typo, index }) {
-  const isEven = index % 2 === 0;
-
+// ─── Table of Contents ───
+function TableOfContents({ typologies, onNavigate }) {
   return (
-    <section style={{
-      minHeight: '100vh',
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Number + Subtitle header bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '20px 40px',
-        borderBottom: `1px solid ${COLORS.industryGray}`,
-        background: COLORS.white,
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{
-            fontSize: '48px',
-            fontWeight: '100',
-            color: typo.accentColor,
-            lineHeight: '1',
-          }}>
-            {typo.number}
-          </span>
-          <div style={{
-            width: '1px',
-            height: '32px',
-            background: COLORS.industryGray,
-          }} />
-          <span style={{
-            fontSize: '11px',
-            letterSpacing: '4px',
-            textTransform: 'uppercase',
-            color: COLORS.harbourBlue,
-            fontWeight: '600',
-          }}>
-            {typo.subtitle}
-          </span>
-        </div>
-        <span style={{
-          fontSize: '11px',
-          letterSpacing: '3px',
-          color: 'rgba(0,0,0,0.3)',
-          textTransform: 'uppercase',
-        }}>
-          {'המורה של אשדוד מחר'}
-        </span>
-      </div>
-
-      {/* Main spread content */}
-      <div style={{
-        flex: 1,
-        display: 'grid',
-        gridTemplateColumns: isEven ? '1fr 1fr' : '1fr 1fr',
-        minHeight: 'calc(100vh - 73px)',
-      }}>
-        {/* Image side */}
-        <div style={{
-          position: 'relative',
-          overflow: 'hidden',
-          order: isEven ? 1 : 2,
-          minHeight: '500px',
-        }}>
-          <img
-            src={typo.images[0]}
-            alt={typo.title}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-            }}
-          />
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: isEven
-              ? `linear-gradient(to left, rgba(0,0,0,0.3) 0%, transparent 50%)`
-              : `linear-gradient(to right, rgba(0,0,0,0.3) 0%, transparent 50%)`,
-          }} />
-
-          {/* Pull quote on image */}
-          <div style={{
-            position: 'absolute',
-            bottom: '40px',
-            right: isEven ? '40px' : 'auto',
-            left: isEven ? 'auto' : '40px',
-            maxWidth: '280px',
-            padding: '24px',
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(10px)',
-            borderRight: `3px solid ${typo.accentColor}`,
-          }}>
-            <p style={{
-              fontSize: '11px',
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              color: typo.accentColor,
-              marginBottom: '8px',
-              fontWeight: '600',
-            }}>
-              {'פרשנות אדריכלית'}
-            </p>
-            <p style={{
-              fontSize: '14px',
-              color: COLORS.white,
-              lineHeight: '1.7',
-              fontWeight: '300',
-            }}>
-              {typo.architectureInterpretation}
-            </p>
-          </div>
-        </div>
-
-        {/* Text side */}
-        <div style={{
-          order: isEven ? 2 : 1,
-          padding: '60px 50px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          background: isEven ? COLORS.cream : COLORS.white,
-          position: 'relative',
-        }}>
-          {/* Decorative accent */}
-          <div style={{
-            position: 'absolute',
-            top: '60px',
-            right: isEven ? '50px' : 'auto',
-            left: isEven ? 'auto' : '50px',
-            width: '40px',
-            height: '3px',
-            background: typo.accentColor,
-          }} />
-
-          <div style={{ maxWidth: '480px' }}>
-            <h2 style={{
-              fontSize: 'clamp(28px, 4vw, 44px)',
-              fontWeight: '700',
-              color: COLORS.harbourBlue,
-              lineHeight: '1.2',
-              marginBottom: '24px',
-              marginTop: '20px',
-            }}>
-              {typo.title}
-            </h2>
-
-            <p style={{
-              fontSize: 'clamp(15px, 1.5vw, 18px)',
-              color: COLORS.black,
-              lineHeight: '1.9',
-              marginBottom: '40px',
-              fontWeight: '300',
-            }}>
-              {typo.description}
-            </p>
-
-            {/* Clothing interpretation */}
-            <div style={{
-              padding: '24px 0',
-              borderTop: `1px solid ${COLORS.industryGray}`,
-              borderBottom: `1px solid ${COLORS.industryGray}`,
-              marginBottom: '32px',
-            }}>
-              <p style={{
-                fontSize: '11px',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                color: typo.accentColor,
-                marginBottom: '10px',
-                fontWeight: '700',
-              }}>
-                {'פרשנות בבגדים ועיצוב'}
-              </p>
-              <p style={{
-                fontSize: '15px',
-                color: COLORS.black,
-                lineHeight: '1.8',
-                fontStyle: 'italic',
-                fontWeight: '300',
-              }}>
-                {typo.clothingInterpretation}
-              </p>
-            </div>
-
-            {/* Ashdod context */}
-            <div style={{
-              display: 'flex',
-              gap: '16px',
-              alignItems: 'flex-start',
-            }}>
-              <div style={{
-                width: '4px',
-                minHeight: '40px',
-                background: `linear-gradient(to bottom, ${typo.accentColor}, transparent)`,
-                flexShrink: 0,
-                marginTop: '4px',
-              }} />
-              <div>
-                <p style={{
-                  fontSize: '11px',
-                  letterSpacing: '2px',
-                  textTransform: 'uppercase',
-                  color: COLORS.duneGreen,
-                  marginBottom: '8px',
-                  fontWeight: '700',
-                }}>
-                  {'אשדוד בהקשר זה'}
-                </p>
-                <p style={{
-                  fontSize: '14px',
-                  color: 'rgba(0,0,0,0.6)',
-                  lineHeight: '1.7',
-                }}>
-                  {typo.ashdodContext}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Secondary image */}
-          {typo.images[1] && (
-            <div style={{
-              marginTop: '40px',
-              maxWidth: '480px',
-            }}>
-              <div style={{
-                position: 'relative',
-                overflow: 'hidden',
-                aspectRatio: typo.images.length > 2 ? '21/9' : '16/9',
-                borderRadius: '2px',
-              }}>
-                <img
-                  src={typo.images[1]}
-                  alt={`${typo.title} - 2`}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-              </div>
-              {typo.images[2] && (
-                <div style={{
-                  marginTop: '8px',
-                  overflow: 'hidden',
-                  aspectRatio: '21/9',
-                  borderRadius: '2px',
-                }}>
-                  <img
-                    src={typo.images[2]}
-                    alt={`${typo.title} - 3`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Page divider */}
-      <div style={{
-        height: '1px',
-        background: `linear-gradient(to right, transparent, ${typo.accentColor}, transparent)`,
-      }} />
-    </section>
-  );
-}
-
-function TableOfContents({ onNavigate }) {
-  return (
-    <section style={{
-      minHeight: '100vh',
+    <div style={{
+      width: '100%',
+      height: '100%',
       background: COLORS.offWhite,
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: '60px 40px',
+      padding: '40px',
+      overflowY: 'auto',
     }}>
       <div style={{ maxWidth: '800px', width: '100%' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '16px',
-          marginBottom: '60px',
+          marginBottom: '48px',
         }}>
           <div style={{
             width: '40px',
@@ -563,7 +284,7 @@ function TableOfContents({ onNavigate }) {
           </h2>
         </div>
 
-        {TYPOLOGIES.map((typo, i) => (
+        {typologies.map((typo, i) => (
           <button
             key={typo.id}
             onClick={() => onNavigate(typo.id)}
@@ -571,7 +292,7 @@ function TableOfContents({ onNavigate }) {
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              padding: '20px 0',
+              padding: '16px 0',
               borderTop: i === 0 ? `1px solid ${COLORS.industryGray}` : 'none',
               borderBottom: `1px solid ${COLORS.industryGray}`,
               borderLeft: 'none',
@@ -579,33 +300,33 @@ function TableOfContents({ onNavigate }) {
               background: 'transparent',
               cursor: 'pointer',
               textAlign: 'right',
-              transition: 'all 0.3s',
               gap: '24px',
+              fontFamily: 'inherit',
             }}
           >
             <span style={{
-              fontSize: '36px',
+              fontSize: '32px',
               fontWeight: '100',
               color: typo.accentColor,
-              minWidth: '60px',
+              minWidth: '50px',
             }}>
               {typo.number}
             </span>
             <div style={{ flex: 1 }}>
               <h3 style={{
-                fontSize: '20px',
+                fontSize: '18px',
                 fontWeight: '600',
                 color: COLORS.harbourBlue,
-                marginBottom: '4px',
+                marginBottom: '2px',
               }}>
                 {typo.title}
               </h3>
               <p style={{
-                fontSize: '13px',
+                fontSize: '12px',
                 color: 'rgba(0,0,0,0.4)',
                 fontWeight: '300',
               }}>
-                {typo.description.slice(0, 80)}...
+                {typo.description.slice(0, 70)}...
               </p>
             </div>
             <span style={{
@@ -619,20 +340,445 @@ function TableOfContents({ onNavigate }) {
           </button>
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
+// ─── Typology Spread ───
+function TypologySpread({ typo, index, editMode, onUpdate }) {
+  const isEven = index % 2 === 0;
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      onUpdate(typo.id, 'images', [...typo.images, reader.result]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = (idx) => {
+    onUpdate(typo.id, 'images', typo.images.filter((_, i) => i !== idx));
+  };
+
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      onUpdate(typo.id, 'videoSrc', reader.result);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  return (
+    <div style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+      border: editMode ? '2px dashed rgba(200,90,54,0.3)' : 'none',
+    }}>
+      {/* Header bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 40px',
+        borderBottom: `1px solid ${COLORS.industryGray}`,
+        background: COLORS.white,
+        flexShrink: 0,
+        zIndex: 2,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{
+            fontSize: '40px',
+            fontWeight: '100',
+            color: typo.accentColor,
+            lineHeight: '1',
+          }}>
+            {typo.number}
+          </span>
+          <div style={{ width: '1px', height: '28px', background: COLORS.industryGray }} />
+          <span style={{
+            fontSize: '11px',
+            letterSpacing: '4px',
+            textTransform: 'uppercase',
+            color: COLORS.harbourBlue,
+            fontWeight: '600',
+          }}>
+            {typo.subtitle}
+          </span>
+        </div>
+        <span style={{
+          fontSize: '10px',
+          letterSpacing: '3px',
+          color: 'rgba(0,0,0,0.25)',
+          textTransform: 'uppercase',
+        }}>
+          {'המורה של אשדוד מחר'}
+        </span>
+      </div>
+
+      {/* Main content */}
+      <div style={{
+        flex: 1,
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        overflow: 'hidden',
+      }}>
+        {/* Image / Video side */}
+        <div style={{
+          position: 'relative',
+          overflow: 'hidden',
+          order: isEven ? 1 : 2,
+        }}>
+          {typo.videoSrc ? (
+            <video
+              src={typo.videoSrc}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          ) : typo.images[0] ? (
+            <img
+              src={typo.images[0]}
+              alt={typo.title}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '100%',
+              height: '100%',
+              background: COLORS.industryGray,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: COLORS.harbourBlue,
+              fontSize: '14px',
+            }}>
+              {'אין תמונה'}
+            </div>
+          )}
+
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: isEven
+              ? 'linear-gradient(to left, rgba(0,0,0,0.3) 0%, transparent 50%)'
+              : 'linear-gradient(to right, rgba(0,0,0,0.3) 0%, transparent 50%)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Pull quote overlay */}
+          <div style={{
+            position: 'absolute',
+            bottom: '24px',
+            right: isEven ? '24px' : 'auto',
+            left: isEven ? 'auto' : '24px',
+            maxWidth: '260px',
+            padding: '20px',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(10px)',
+            borderRight: `3px solid ${typo.accentColor}`,
+          }}>
+            <p style={{
+              fontSize: '10px',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+              color: typo.accentColor,
+              marginBottom: '6px',
+              fontWeight: '600',
+            }}>
+              {'פרשנות אדריכלית'}
+            </p>
+            <EditableText
+              value={typo.architectureInterpretation}
+              onSave={(v) => onUpdate(typo.id, 'architectureInterpretation', v)}
+              editMode={editMode}
+              style={{
+                fontSize: '13px',
+                color: COLORS.white,
+                lineHeight: '1.7',
+                fontWeight: '300',
+              }}
+            />
+          </div>
+
+          {/* Edit controls on image */}
+          {editMode && (
+            <div style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              display: 'flex',
+              gap: '8px',
+              zIndex: 5,
+            }}>
+              {typo.videoSrc && (
+                <button
+                  onClick={() => onUpdate(typo.id, 'videoSrc', '')}
+                  style={{
+                    background: COLORS.apricotRed,
+                    border: 'none',
+                    color: COLORS.white,
+                    borderRadius: '4px',
+                    padding: '6px 10px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <X size={12} />
+                  {'הסר סרטון'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Text side */}
+        <div style={{
+          order: isEven ? 2 : 1,
+          padding: '32px 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          background: isEven ? COLORS.cream : COLORS.white,
+          overflowY: 'auto',
+        }}>
+          <div style={{
+            width: '40px',
+            height: '3px',
+            background: typo.accentColor,
+            marginBottom: '16px',
+          }} />
+
+          <EditableText
+            value={typo.title}
+            onSave={(v) => onUpdate(typo.id, 'title', v)}
+            editMode={editMode}
+            tag="h2"
+            style={{
+              fontSize: 'clamp(24px, 3.5vw, 38px)',
+              fontWeight: '700',
+              color: COLORS.harbourBlue,
+              lineHeight: '1.2',
+              marginBottom: '16px',
+            }}
+          />
+
+          <EditableText
+            value={typo.description}
+            onSave={(v) => onUpdate(typo.id, 'description', v)}
+            editMode={editMode}
+            style={{
+              fontSize: 'clamp(14px, 1.3vw, 16px)',
+              color: COLORS.black,
+              lineHeight: '1.8',
+              marginBottom: '24px',
+              fontWeight: '300',
+            }}
+          />
+
+          {/* Clothing interpretation */}
+          <div style={{
+            padding: '16px 0',
+            borderTop: `1px solid ${COLORS.industryGray}`,
+            borderBottom: `1px solid ${COLORS.industryGray}`,
+            marginBottom: '20px',
+          }}>
+            <p style={{
+              fontSize: '10px',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+              color: typo.accentColor,
+              marginBottom: '8px',
+              fontWeight: '700',
+            }}>
+              {'פרשנות בבגדים ועיצוב'}
+            </p>
+            <EditableText
+              value={typo.clothingInterpretation}
+              onSave={(v) => onUpdate(typo.id, 'clothingInterpretation', v)}
+              editMode={editMode}
+              style={{
+                fontSize: '14px',
+                color: COLORS.black,
+                lineHeight: '1.8',
+                fontStyle: 'italic',
+                fontWeight: '300',
+              }}
+            />
+          </div>
+
+          {/* Ashdod context */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'flex-start',
+            marginBottom: '20px',
+          }}>
+            <div style={{
+              width: '3px',
+              minHeight: '32px',
+              background: `linear-gradient(to bottom, ${typo.accentColor}, transparent)`,
+              flexShrink: 0,
+              marginTop: '3px',
+            }} />
+            <div>
+              <p style={{
+                fontSize: '10px',
+                letterSpacing: '2px',
+                textTransform: 'uppercase',
+                color: COLORS.duneGreen,
+                marginBottom: '6px',
+                fontWeight: '700',
+              }}>
+                {'אשדוד בהקשר זה'}
+              </p>
+              <EditableText
+                value={typo.ashdodContext}
+                onSave={(v) => onUpdate(typo.id, 'ashdodContext', v)}
+                editMode={editMode}
+                style={{
+                  fontSize: '13px',
+                  color: 'rgba(0,0,0,0.6)',
+                  lineHeight: '1.7',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Secondary images gallery */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            marginTop: 'auto',
+          }}>
+            {typo.images.slice(1).map((src, idx) => (
+              <div key={idx} style={{
+                position: 'relative',
+                flex: '1 1 140px',
+                maxWidth: '220px',
+                aspectRatio: '4/3',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+                <img
+                  src={src}
+                  alt={`${typo.title} ${idx + 2}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                {editMode && (
+                  <button
+                    onClick={() => handleRemoveImage(idx + 1)}
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      background: COLORS.apricotRed,
+                      border: 'none',
+                      color: COLORS.white,
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      display: 'flex',
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {/* Edit mode: add image / video buttons */}
+            {editMode && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '8px 12px',
+                  background: COLORS.duneGreen,
+                  color: COLORS.white,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontFamily: 'inherit',
+                }}>
+                  <Plus size={12} />
+                  {'תמונה'}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '8px 12px',
+                  background: COLORS.harbourBlue,
+                  color: COLORS.white,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontFamily: 'inherit',
+                }}>
+                  <Upload size={12} />
+                  {'סרטון'}
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Closing Page ───
 function ClosingPage() {
   return (
-    <section style={{
-      minHeight: '60vh',
+    <div style={{
+      width: '100%',
+      height: '100%',
       background: `linear-gradient(160deg, ${COLORS.darkBlue} 0%, ${COLORS.harbourBlue} 100%)`,
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: '80px 40px',
+      padding: '60px 40px',
       textAlign: 'center',
     }}>
       <div style={{
@@ -672,7 +818,6 @@ function ClosingPage() {
         fontSize: '14px',
         color: 'rgba(255,255,255,0.5)',
         letterSpacing: '2px',
-        marginBottom: '8px',
       }}>
         {'מצוינות עם נשמה — אקוסיסטם של משמעות'}
       </p>
@@ -681,10 +826,9 @@ function ClosingPage() {
         marginTop: '60px',
         display: 'flex',
         gap: '24px',
-        flexWrap: 'wrap',
         justifyContent: 'center',
       }}>
-        {[COLORS.coralTeal, COLORS.apricotRed, COLORS.duneGreen, COLORS.harbourBlue, COLORS.coralTeal, COLORS.apricotRed].map((c, i) => (
+        {['#2a9b9f', '#c85a36', '#8a9b7f', '#1a4d7a', '#2a9b9f', '#c85a36'].map((c, i) => (
           <div key={i} style={{
             width: '8px',
             height: '8px',
@@ -704,57 +848,299 @@ function ClosingPage() {
       }}>
         {'עיריית אשדוד — מנהל חינוך'}
       </div>
-    </section>
+    </div>
   );
 }
 
-export default function AshdodMagazine() {
-  const sectionRefs = useRef({});
+// ─── Navigation Dots ───
+function PageDots({ current, total, onGoTo }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '20px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      display: 'flex',
+      gap: '10px',
+      zIndex: 100,
+      padding: '8px 16px',
+      background: 'rgba(0,0,0,0.3)',
+      backdropFilter: 'blur(8px)',
+      borderRadius: '20px',
+    }}>
+      {Array.from({ length: total }, (_, i) => (
+        <button
+          key={i}
+          onClick={() => onGoTo(i)}
+          style={{
+            width: current === i ? '24px' : '8px',
+            height: '8px',
+            borderRadius: '4px',
+            border: 'none',
+            background: current === i ? COLORS.apricotRed : 'rgba(255,255,255,0.4)',
+            cursor: 'pointer',
+            padding: 0,
+            transition: 'all 0.3s',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
-  const scrollToSection = (id) => {
-    const el = sectionRefs.current[id];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+// ─── Main Magazine Component ───
+export default function AshdodMagazine() {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [editMode, setEditMode] = useState(false);
+  const [typologies, setTypologies] = useState(DEFAULT_TYPOLOGIES);
+  const [saveMsg, setSaveMsg] = useState(false);
+  const touchStart = useRef(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ashdod-magazine-data');
+    if (saved) {
+      try {
+        setTypologies(JSON.parse(saved));
+      } catch {}
     }
+  }, []);
+
+  const goTo = useCallback((page) => {
+    setCurrentPage(Math.max(0, Math.min(TOTAL_PAGES - 1, page)));
+  }, []);
+
+  const goNext = useCallback(() => goTo(currentPage + 1), [currentPage, goTo]);
+  const goPrev = useCallback(() => goTo(currentPage - 1), [currentPage, goTo]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e) => {
+      if (editMode) return;
+      if (e.key === 'ArrowLeft') goNext(); // RTL: left = next
+      if (e.key === 'ArrowRight') goPrev(); // RTL: right = prev
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [goNext, goPrev, editMode]);
+
+  // Touch/swipe navigation
+  const handleTouchStart = (e) => {
+    touchStart.current = e.touches[0].clientX;
   };
 
-  const scrollToContent = () => {
-    const el = sectionRefs.current['toc'];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+  const handleTouchEnd = (e) => {
+    if (touchStart.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStart.current;
+    if (Math.abs(delta) > 50) {
+      // RTL: swipe right (positive delta) = prev, swipe left (negative) = next
+      if (delta > 0) goPrev();
+      else goNext();
     }
+    touchStart.current = null;
+  };
+
+  const updateTypology = useCallback((id, field, value) => {
+    setTypologies(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem('ashdod-magazine-data', JSON.stringify(typologies));
+    setSaveMsg(true);
+    setTimeout(() => setSaveMsg(false), 2000);
+  };
+
+  const navigateToTypology = (id) => {
+    goTo(id + 1); // cover=0, toc=1, typology 1=page 2, etc.
+  };
+
+  const renderPage = (pageIndex) => {
+    if (pageIndex === 0) return <CoverPage />;
+    if (pageIndex === 1) return <TableOfContents typologies={typologies} onNavigate={navigateToTypology} />;
+    if (pageIndex >= 2 && pageIndex <= 7) {
+      const typoIndex = pageIndex - 2;
+      return (
+        <TypologySpread
+          typo={typologies[typoIndex]}
+          index={typoIndex}
+          editMode={editMode}
+          onUpdate={updateTypology}
+        />
+      );
+    }
+    if (pageIndex === 8) return <ClosingPage />;
+    return null;
   };
 
   return (
-    <div dir="rtl" style={{
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      overflowX: 'hidden',
-    }}>
-      <style>{`
-        html { scroll-behavior: smooth; }
-        * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        img { user-select: none; -webkit-user-drag: none; }
-        @media (max-width: 768px) {
-          .magazine-grid { grid-template-columns: 1fr !important; }
-          .magazine-text { padding: 40px 24px !important; }
-          .magazine-img { min-height: 400px !important; }
-          .toc-item { flex-direction: column !important; gap: 8px !important; }
-        }
-      `}</style>
+    <div
+      dir="rtl"
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        position: 'relative',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Page container */}
+      {Array.from({ length: TOTAL_PAGES }, (_, i) => {
+        // Only render pages within range of 1 from current
+        if (Math.abs(i - currentPage) > 1) return null;
+        // RTL: positive offset = move right (which is "back" in RTL)
+        const offset = (i - currentPage) * -100;
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              transform: `translateX(${offset}%)`,
+              transition: 'transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)',
+              willChange: 'transform',
+            }}
+          >
+            {renderPage(i)}
+          </div>
+        );
+      })}
 
-      <CoverPage onEnter={scrollToContent} />
+      {/* Navigation arrows */}
+      {currentPage > 0 && (
+        <button
+          onClick={goPrev}
+          style={{
+            position: 'fixed',
+            right: '16px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(0,0,0,0.3)',
+            backdropFilter: 'blur(8px)',
+            color: COLORS.white,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            transition: 'background 0.2s',
+          }}
+        >
+          <ChevronRight size={24} />
+        </button>
+      )}
 
-      <div ref={(el) => sectionRefs.current['toc'] = el}>
-        <TableOfContents onNavigate={scrollToSection} />
-      </div>
+      {currentPage < TOTAL_PAGES - 1 && (
+        <button
+          onClick={goNext}
+          style={{
+            position: 'fixed',
+            left: '16px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(0,0,0,0.3)',
+            backdropFilter: 'blur(8px)',
+            color: COLORS.white,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            transition: 'background 0.2s',
+          }}
+        >
+          <ChevronLeft size={24} />
+        </button>
+      )}
 
-      {TYPOLOGIES.map((typo, index) => (
-        <div key={typo.id} ref={(el) => sectionRefs.current[typo.id] = el}>
-          <TypologySpread typo={typo} index={index} />
+      {/* Page dots */}
+      <PageDots current={currentPage} total={TOTAL_PAGES} onGoTo={goTo} />
+
+      {/* Edit mode toggle */}
+      <button
+        onClick={() => {
+          if (editMode) handleSave();
+          setEditMode(!editMode);
+        }}
+        style={{
+          position: 'fixed',
+          top: '16px',
+          left: '16px',
+          zIndex: 1000,
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          border: 'none',
+          background: editMode ? COLORS.apricotRed : 'rgba(0,0,0,0.3)',
+          backdropFilter: 'blur(8px)',
+          color: COLORS.white,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'background 0.3s',
+        }}
+        title={editMode ? 'שמור וצא מעריכה' : 'מצב עריכה'}
+      >
+        {editMode ? <Save size={18} /> : <Edit2 size={18} />}
+      </button>
+
+      {/* Save confirmation */}
+      {saveMsg && (
+        <div style={{
+          position: 'fixed',
+          top: '16px',
+          left: '64px',
+          zIndex: 1000,
+          background: COLORS.duneGreen,
+          color: COLORS.white,
+          padding: '8px 16px',
+          borderRadius: '4px',
+          fontSize: '13px',
+          fontFamily: 'inherit',
+          animation: 'fadeOut 2s forwards',
+        }}>
+          {'נשמר בהצלחה'}
         </div>
-      ))}
+      )}
 
-      <ClosingPage />
+      {/* Edit mode indicator */}
+      {editMode && (
+        <div style={{
+          position: 'fixed',
+          top: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          background: 'rgba(200,90,54,0.9)',
+          color: COLORS.white,
+          padding: '6px 20px',
+          borderRadius: '20px',
+          fontSize: '12px',
+          fontFamily: 'inherit',
+          letterSpacing: '1px',
+        }}>
+          {'מצב עריכה — לחצו על טקסט כדי לערוך'}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeOut {
+          0% { opacity: 1; }
+          70% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        * { -webkit-font-smoothing: antialiased; }
+        img, video { user-select: none; -webkit-user-drag: none; }
+      `}</style>
     </div>
   );
 }
