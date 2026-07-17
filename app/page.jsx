@@ -22,8 +22,8 @@ const DEFAULT_TYPOLOGIES = [
     clothingInterpretation: 'שכבות שקופות, בדים חדשים, קווי תנועה אופקיים',
     ashdodContext: 'אזור התעשיה, טכנולוגיה, חדשנות שנשמרת בעדינות',
     images: [
-      { id: 101, src: '/images/teacher-powerful-00.png', name: 'מורה חדשנות 1' },
-      { id: 102, src: '/images/teacher-powerful-02.png', name: 'מורה חדשנות 2' }
+      { id: 101, src: '/images/teacher-male-00.png', name: 'מורה חדשנות 1' },
+      { id: 102, src: '/images/teacher-male-01.png', name: 'מורה חדשנות 2' }
     ]
   },
   {
@@ -58,8 +58,8 @@ const DEFAULT_TYPOLOGIES = [
     clothingInterpretation: 'שכבות שונות בעומק, דואליות יפה',
     ashdodContext: 'חרדי חילוני, ימין שמאל, צעיר מבוגר - אשדוד היא כל זה',
     images: [
-      { id: 401, src: '/images/teacher-male-00.png', name: 'מורה הכלה 1' },
-      { id: 402, src: '/images/teacher-male-01.png', name: 'מורה הכלה 2' }
+      { id: 401, src: '/images/teacher-powerful-00.png', name: 'מורה הכלה 1' },
+      { id: 402, src: '/images/teacher-powerful-02.png', name: 'מורה הכלה 2' }
     ]
   },
   {
@@ -71,7 +71,7 @@ const DEFAULT_TYPOLOGIES = [
     ashdodContext: 'הנמל שעמד במשברים, חוסן הקהילה',
     images: [
       { id: 501, src: '/images/teacher-male-02.png', name: 'מורה חוסן 1' },
-      { id: 502, src: '/images/teacher-female-01.png', name: 'מורה חוסן 2' },
+      { id: 502, src: '/images/teacher-male-03.png', name: 'מורה חוסן 2' },
       { id: 503, src: '/images/teacher-male-03b.png', name: 'מורה חוסן 3' }
     ]
   },
@@ -83,7 +83,7 @@ const DEFAULT_TYPOLOGIES = [
     clothingInterpretation: 'איזון בין יציבה לתנועה, קדימה בבטחון',
     ashdodContext: 'אשדוד בעיקר, אבל בעיניים על העולם',
     images: [
-      { id: 601, src: '/images/teacher-male-03.png', name: 'מורה עיר ועולם 1' },
+      { id: 601, src: '/images/teacher-female-01.png', name: 'מורה עיר ועולם 1' },
       { id: 602, src: '/images/teacher-powerful-03.png', name: 'מורה עיר ועולם 2' }
     ]
   }
