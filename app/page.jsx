@@ -1,10 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Edit2, Save, X, Plus, Upload, Trash2 } from 'lucide-react';
-
-let _idC = 0;
-const genId = () => `${Date.now()}_${++_idC}`;
+import { ChevronLeft, ChevronRight, Edit2, Save, X, Plus, Upload } from 'lucide-react';
 
 const COLORS = {
   harbourBlue: '#1a4d7a',
@@ -19,26 +16,17 @@ const COLORS = {
   darkBlue: '#0d2b45',
 };
 
-function fileToItem(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () =>
-      resolve({
-        id: genId(),
-        type: file.type.startsWith('video/') ? 'video' : 'image',
-        src: reader.result,
-      });
-    reader.readAsDataURL(file);
-  });
-}
-
 function migrateTypology(t) {
-  if (t.galleries) return t;
-  const items = [];
-  if (t.videoSrc) items.push({ id: genId(), type: 'video', src: t.videoSrc });
-  (t.images || []).forEach((s) => items.push({ id: genId(), type: 'image', src: s }));
-  const { images, videoSrc, ...rest } = t;
-  return { ...rest, galleries: [{ id: genId(), name: 'גלריה ראשית', items }] };
+  if (t.images) return t;
+  if (t.galleries) {
+    const imgs = [];
+    t.galleries.forEach((g) => g.items?.forEach((item) => {
+      if (item.type === 'image') imgs.push(item.src);
+    }));
+    const { galleries, ...rest } = t;
+    return { ...rest, images: imgs, videoSrc: t.videoSrc || '' };
+  }
+  return { ...t, images: [], videoSrc: '' };
 }
 
 const DEFAULT_TYPOLOGIES = [
@@ -55,16 +43,8 @@ const DEFAULT_TYPOLOGIES = [
       'שכבות שקופות, בדים חדשים שלא נראו קודם, קווי תנועה אופקיים שמסמנים כיוון. הבד הוא כמו קוד — שקוף לעין אבל בנוי בדיוק.',
     ashdodContext:
       'אזור התעשייה, הטכנולוגיה, החדשנות שנשמרת בעדינות בין מפעלים ישנים לסטארטאפים חדשים.',
-    galleries: [
-      {
-        id: 'g1',
-        name: 'גלריה ראשית',
-        items: [
-          { id: 'i1a', type: 'image', src: '/images/teacher-male-00.png' },
-          { id: 'i1b', type: 'image', src: '/images/teacher-male-01.png' },
-        ],
-      },
-    ],
+    images: ['/images/teacher-male-00.png', '/images/teacher-male-01.png'],
+    videoSrc: '',
     accentColor: '#2a9b9f',
   },
   {
@@ -80,16 +60,8 @@ const DEFAULT_TYPOLOGIES = [
       'בדים שונים יחד בחיבורים חזקים. כל טלאי מביא את הסיפור שלו, וביחד הם יוצרים שמיכה שמחממת את כולם.',
     ashdodContext:
       'תרבויות רבות ועדות שונות בעיר אחת. אשדוד היא פסיפס של קהילות — מרוקו, אתיופיה, רוסיה, צרפת — וכולן ביחד.',
-    galleries: [
-      {
-        id: 'g2',
-        name: 'גלריה ראשית',
-        items: [
-          { id: 'i2a', type: 'image', src: '/images/teacher-warm-00.png' },
-          { id: 'i2b', type: 'image', src: '/images/teacher-warm-01.png' },
-        ],
-      },
-    ],
+    images: ['/images/teacher-warm-00.png', '/images/teacher-warm-01.png'],
+    videoSrc: '',
     accentColor: '#c85a36',
   },
   {
@@ -105,16 +77,8 @@ const DEFAULT_TYPOLOGIES = [
       'צבעים מעבירים, קווי עקומה, פרטים לא צפויים. הבגד הוא לא מה שציפית — הוא מה שלא ידעת שאתה רוצה.',
     ashdodContext:
       'תרבות אוכל, אומנות ומוזיקה בעיר. מהפסטיבלים ברובע הישן ועד הגלריות החדשות.',
-    galleries: [
-      {
-        id: 'g3',
-        name: 'גלריה ראשית',
-        items: [
-          { id: 'i3a', type: 'image', src: '/images/teacher-warm-02.png' },
-          { id: 'i3b', type: 'image', src: '/images/teacher-warm-03.png' },
-        ],
-      },
-    ],
+    images: ['/images/teacher-warm-02.png', '/images/teacher-warm-03.png'],
+    videoSrc: '',
     accentColor: '#8a9b7f',
   },
   {
@@ -130,16 +94,8 @@ const DEFAULT_TYPOLOGIES = [
       'שכבות שונות בעומק, דואליות יפה. הבגד מכיל בתוכו סיפורים שונים — ישנים וחדשים, קלים וכבדים.',
     ashdodContext:
       'חרדי חילוני, ימין שמאל, צעיר מבוגר — אשדוד היא כל זה ביחד, בלי לוותר על אף חלק.',
-    galleries: [
-      {
-        id: 'g4',
-        name: 'גלריה ראשית',
-        items: [
-          { id: 'i4a', type: 'image', src: '/images/teacher-powerful-00.png' },
-          { id: 'i4b', type: 'image', src: '/images/teacher-powerful-02.png' },
-        ],
-      },
-    ],
+    images: ['/images/teacher-powerful-00.png', '/images/teacher-powerful-02.png'],
+    videoSrc: '',
     accentColor: '#1a4d7a',
   },
   {
@@ -155,17 +111,8 @@ const DEFAULT_TYPOLOGIES = [
       'תפרים חזקים ברקע, מבנה יציב וקלילות. הבגד נראה קל אבל מחזיק חזק — כמו נייר שעמד בגשם.',
     ashdodContext:
       'הנמל שעמד במשברים, חוסן הקהילה שעברה מלחמות ועדיין עומדת.',
-    galleries: [
-      {
-        id: 'g5',
-        name: 'גלריה ראשית',
-        items: [
-          { id: 'i5a', type: 'image', src: '/images/teacher-male-02.png' },
-          { id: 'i5b', type: 'image', src: '/images/teacher-male-03.png' },
-          { id: 'i5c', type: 'image', src: '/images/teacher-male-03b.png' },
-        ],
-      },
-    ],
+    images: ['/images/teacher-male-02.png', '/images/teacher-male-03.png', '/images/teacher-male-03b.png'],
+    videoSrc: '',
     accentColor: '#c85a36',
   },
   {
@@ -181,16 +128,8 @@ const DEFAULT_TYPOLOGIES = [
       'איזון בין יציבה לתנועה, קדימה בביטחון. הבגד מאפשר ללכת קדימה — רגליים על הקרקע, ראש בעננים.',
     ashdodContext:
       'אשדוד בעיקר, אבל בעיניים על העולם. מהנמל יוצאות ספינות לכל כיוון.',
-    galleries: [
-      {
-        id: 'g6',
-        name: 'גלריה ראשית',
-        items: [
-          { id: 'i6a', type: 'image', src: '/images/teacher-female-01.png' },
-          { id: 'i6b', type: 'image', src: '/images/teacher-powerful-03.png' },
-        ],
-      },
-    ],
+    images: ['/images/teacher-female-01.png', '/images/teacher-powerful-03.png'],
+    videoSrc: '',
     accentColor: '#2a9b9f',
   },
 ];
@@ -222,564 +161,6 @@ function EditableText({ value, onSave, editMode, style, tag: Tag = 'p' }) {
     >
       {value}
     </Tag>
-  );
-}
-
-// ─── Media Gallery ───
-function MediaGallery({ galleries, editMode, onChange, accentColor, overlay }) {
-  const [activeTab, setActiveTab] = useState(0);
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const [dragIdx, setDragIdx] = useState(null);
-  const [dragOverIdx, setDragOverIdx] = useState(-1);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const safeTab = Math.min(activeTab, galleries.length - 1);
-  const gallery = galleries[safeTab];
-  const items = gallery?.items || [];
-  const safeSelIdx = Math.min(selectedIdx, Math.max(0, items.length - 1));
-  const selected = items[safeSelIdx] || null;
-
-  useEffect(() => {
-    setSelectedIdx(0);
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (selectedIdx >= items.length && items.length > 0) setSelectedIdx(items.length - 1);
-  }, [items.length, selectedIdx]);
-
-  const updateGallery = (gi, updates) => {
-    const g = [...galleries];
-    g[gi] = { ...g[gi], ...updates };
-    onChange(g);
-  };
-
-  const updateItems = (newItems) => updateGallery(safeTab, { items: newItems });
-
-  const addGallery = () => {
-    onChange([...galleries, { id: genId(), name: `גלריה ${galleries.length + 1}`, items: [] }]);
-    setActiveTab(galleries.length);
-  };
-
-  const removeGallery = (idx) => {
-    if (galleries.length <= 1) return;
-    onChange(galleries.filter((_, i) => i !== idx));
-    if (activeTab >= galleries.length - 1) setActiveTab(Math.max(0, galleries.length - 2));
-  };
-
-  const moveGallery = (idx, dir) => {
-    const t = idx + dir;
-    if (t < 0 || t >= galleries.length) return;
-    const g = [...galleries];
-    [g[idx], g[t]] = [g[t], g[idx]];
-    onChange(g);
-    setActiveTab(t);
-  };
-
-  const handleFiles = async (fileList) => {
-    const files = Array.from(fileList).filter(
-      (f) => f.type.startsWith('image/') || f.type.startsWith('video/')
-    );
-    if (!files.length) return;
-    const newItems = await Promise.all(files.map(fileToItem));
-    updateItems([...items, ...newItems]);
-    setSelectedIdx(items.length);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    if (e.dataTransfer.getData('text/x-reorder')) return;
-    handleFiles(e.dataTransfer.files);
-  };
-
-  const handleDragOverMain = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsDragOver(true);
-  };
-
-  const handleDragLeaveMain = () => setIsDragOver(false);
-
-  const removeItem = (idx) => {
-    updateItems(items.filter((_, i) => i !== idx));
-  };
-
-  const handleThumbDragStart = (e, idx) => {
-    e.dataTransfer.setData('text/x-reorder', 'true');
-    setDragIdx(idx);
-  };
-
-  const handleThumbDragOver = (e, idx) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIdx(idx);
-  };
-
-  const handleThumbDrop = (e, idx) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dragIdx !== null && dragIdx !== idx) {
-      const ni = [...items];
-      const [moved] = ni.splice(dragIdx, 1);
-      ni.splice(idx, 0, moved);
-      updateItems(ni);
-      setSelectedIdx(idx);
-    }
-    setDragIdx(null);
-    setDragOverIdx(-1);
-  };
-
-  const handleThumbDragEnd = () => {
-    setDragIdx(null);
-    setDragOverIdx(-1);
-  };
-
-  const goNext = () => setSelectedIdx((i) => Math.min(items.length - 1, i + 1));
-  const goPrev = () => setSelectedIdx((i) => Math.max(0, i - 1));
-
-  const renameGallery = (gi, name) => updateGallery(gi, { name });
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Main frame */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          position: 'relative',
-          background: '#111',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          border: isDragOver ? `3px solid ${accentColor}` : '3px solid transparent',
-          transition: 'border 0.2s',
-        }}
-        onDrop={editMode ? handleDrop : undefined}
-        onDragOver={editMode ? handleDragOverMain : undefined}
-        onDragLeave={editMode ? handleDragLeaveMain : undefined}
-      >
-        {selected ? (
-          selected.type === 'video' ? (
-            <video
-              key={selected.id}
-              src={selected.src}
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-            />
-          ) : (
-            <img
-              key={selected.id}
-              src={selected.src}
-              alt=""
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-            />
-          )
-        ) : (
-          <div
-            style={{
-              color: '#666',
-              fontSize: '20px',
-              textAlign: 'center',
-              padding: '40px',
-            }}
-          >
-            {editMode ? 'גררו תמונה או סרטון לכאן, או הדביקו מהלוח' : 'אין מדיה'}
-          </div>
-        )}
-
-        {/* Navigation arrows inside main frame */}
-        {items.length > 1 && safeSelIdx > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goPrev();
-            }}
-            style={{
-              position: 'absolute',
-              right: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              border: 'none',
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(4px)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 5,
-            }}
-          >
-            <ChevronRight size={22} />
-          </button>
-        )}
-        {items.length > 1 && safeSelIdx < items.length - 1 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goNext();
-            }}
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              border: 'none',
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(4px)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 5,
-            }}
-          >
-            <ChevronLeft size={22} />
-          </button>
-        )}
-
-        {/* Item counter */}
-        {items.length > 1 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '12px',
-              left: '12px',
-              background: 'rgba(0,0,0,0.6)',
-              color: '#fff',
-              padding: '4px 12px',
-              borderRadius: '12px',
-              fontSize: '14px',
-              zIndex: 5,
-            }}
-          >
-            {`${safeSelIdx + 1} / ${items.length}`}
-          </div>
-        )}
-
-        {/* Overlay (architecture interpretation) */}
-        {overlay}
-
-        {/* Drag overlay hint */}
-        {editMode && isDragOver && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(42,155,159,0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-              pointerEvents: 'none',
-            }}
-          >
-            <div
-              style={{
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '16px 32px',
-                borderRadius: '12px',
-                fontSize: '20px',
-              }}
-            >
-              {'שחררו כאן'}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Gallery tabs + thumbnails */}
-      <div
-        style={{
-          flexShrink: 0,
-          background: '#1a1a1a',
-          padding: '10px 12px',
-        }}
-      >
-        {/* Gallery tabs */}
-        {(galleries.length > 1 || editMode) && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '10px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {galleries.map((g, gi) => (
-              <div
-                key={g.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: gi === safeTab ? accentColor : 'rgba(255,255,255,0.1)',
-                  borderRadius: '6px',
-                  overflow: 'hidden',
-                }}
-              >
-                {editMode ? (
-                  <span
-                    contentEditable
-                    suppressContentEditableWarning
-                    onBlur={(e) => renameGallery(gi, e.target.innerText)}
-                    style={{
-                      padding: '5px 12px',
-                      color: gi === safeTab ? '#fff' : 'rgba(255,255,255,0.6)',
-                      fontSize: '13px',
-                      fontFamily: 'inherit',
-                      cursor: 'text',
-                      outline: 'none',
-                      minWidth: '40px',
-                    }}
-                    onClick={() => setActiveTab(gi)}
-                  >
-                    {g.name}
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setActiveTab(gi)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: gi === safeTab ? '#fff' : 'rgba(255,255,255,0.6)',
-                      padding: '5px 12px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    {g.name}
-                  </button>
-                )}
-                {editMode && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', paddingLeft: '2px' }}>
-                    {gi > 0 && (
-                      <button
-                        onClick={() => moveGallery(gi, -1)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          color: 'rgba(255,255,255,0.4)',
-                          cursor: 'pointer',
-                          fontSize: '10px',
-                          padding: '2px',
-                        }}
-                      >
-                        {'→'}
-                      </button>
-                    )}
-                    {gi < galleries.length - 1 && (
-                      <button
-                        onClick={() => moveGallery(gi, 1)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          color: 'rgba(255,255,255,0.4)',
-                          cursor: 'pointer',
-                          fontSize: '10px',
-                          padding: '2px',
-                        }}
-                      >
-                        {'←'}
-                      </button>
-                    )}
-                    {galleries.length > 1 && (
-                      <button
-                        onClick={() => removeGallery(gi)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          color: 'rgba(255,255,255,0.4)',
-                          cursor: 'pointer',
-                          padding: '2px 4px',
-                          display: 'flex',
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-            {editMode && (
-              <button
-                onClick={addGallery}
-                style={{
-                  border: '1px dashed rgba(255,255,255,0.3)',
-                  background: 'transparent',
-                  color: 'rgba(255,255,255,0.5)',
-                  borderRadius: '6px',
-                  padding: '5px 10px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <Plus size={12} /> {'גלריה חדשה'}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Thumbnail strip */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '8px',
-            overflowX: 'auto',
-            padding: '2px 0',
-            alignItems: 'center',
-          }}
-        >
-          {items.map((item, idx) => (
-            <div
-              key={item.id}
-              onClick={() => setSelectedIdx(idx)}
-              draggable={editMode}
-              onDragStart={editMode ? (e) => handleThumbDragStart(e, idx) : undefined}
-              onDragOver={editMode ? (e) => handleThumbDragOver(e, idx) : undefined}
-              onDrop={editMode ? (e) => handleThumbDrop(e, idx) : undefined}
-              onDragEnd={editMode ? handleThumbDragEnd : undefined}
-              style={{
-                position: 'relative',
-                flexShrink: 0,
-                height: '72px',
-                minWidth: '56px',
-                maxWidth: '110px',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                cursor: editMode ? 'grab' : 'pointer',
-                border:
-                  idx === safeSelIdx
-                    ? `3px solid ${accentColor}`
-                    : dragOverIdx === idx
-                    ? '3px solid rgba(255,255,255,0.6)'
-                    : '3px solid transparent',
-                opacity: dragIdx === idx ? 0.4 : 1,
-                transition: 'border 0.15s, opacity 0.15s',
-              }}
-            >
-              {item.type === 'video' ? (
-                <video
-                  src={item.src}
-                  muted
-                  style={{ height: '100%', width: 'auto', objectFit: 'cover', display: 'block' }}
-                />
-              ) : (
-                <img
-                  src={item.src}
-                  alt=""
-                  style={{ height: '100%', width: 'auto', objectFit: 'cover', display: 'block' }}
-                />
-              )}
-              {editMode && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeItem(idx);
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: '3px',
-                    right: '3px',
-                    background: 'rgba(200,90,54,0.9)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 0,
-                  }}
-                >
-                  <X size={11} />
-                </button>
-              )}
-            </div>
-          ))}
-
-          {editMode && (
-            <>
-              <label
-                style={{
-                  flexShrink: 0,
-                  width: '72px',
-                  height: '72px',
-                  border: '2px dashed rgba(255,255,255,0.3)',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: '11px',
-                  gap: '4px',
-                }}
-              >
-                <Plus size={18} />
-                {'תמונה'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
-              </label>
-              <label
-                style={{
-                  flexShrink: 0,
-                  width: '72px',
-                  height: '72px',
-                  border: '2px dashed rgba(255,255,255,0.3)',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: '11px',
-                  gap: '4px',
-                }}
-              >
-                <Upload size={18} />
-                {'סרטון'}
-                <input
-                  type="file"
-                  accept="video/*"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
-              </label>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -832,12 +213,7 @@ function CoverPage() {
         }}
       >
         <div
-          style={{
-            width: '60px',
-            height: '2px',
-            background: COLORS.apricotRed,
-            margin: '0 auto 40px',
-          }}
+          style={{ width: '60px', height: '2px', background: COLORS.apricotRed, margin: '0 auto 40px' }}
         />
         <h1
           style={{
@@ -866,12 +242,7 @@ function CoverPage() {
           {'אשדוד מחר'}
         </h1>
         <div
-          style={{
-            width: '120px',
-            height: '1px',
-            background: 'rgba(255,255,255,0.3)',
-            margin: '0 auto 32px',
-          }}
+          style={{ width: '120px', height: '1px', background: 'rgba(255,255,255,0.3)', margin: '0 auto 32px' }}
         />
         <p
           style={{
@@ -934,14 +305,7 @@ function TableOfContents({ typologies, onNavigate }) {
       }}
     >
       <div style={{ maxWidth: '900px', width: '100%' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            marginBottom: '48px',
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '48px' }}>
           <div style={{ width: '40px', height: '3px', background: COLORS.apricotRed }} />
           <h2
             style={{
@@ -955,7 +319,6 @@ function TableOfContents({ typologies, onNavigate }) {
             {'תוכן העניינים'}
           </h2>
         </div>
-
         {typologies.map((typo, i) => (
           <button
             key={typo.id}
@@ -976,45 +339,19 @@ function TableOfContents({ typologies, onNavigate }) {
               fontFamily: 'inherit',
             }}
           >
-            <span
-              style={{
-                fontSize: '48px',
-                fontWeight: '100',
-                color: typo.accentColor,
-                minWidth: '65px',
-              }}
-            >
+            <span style={{ fontSize: '48px', fontWeight: '100', color: typo.accentColor, minWidth: '65px' }}>
               {typo.number}
             </span>
             <div style={{ flex: 1 }}>
-              <h3
-                style={{
-                  fontSize: '26px',
-                  fontWeight: '600',
-                  color: COLORS.harbourBlue,
-                  marginBottom: '4px',
-                }}
-              >
+              <h3 style={{ fontSize: '26px', fontWeight: '600', color: COLORS.harbourBlue, marginBottom: '4px' }}>
                 {typo.title}
               </h3>
-              <p
-                style={{
-                  fontSize: '16px',
-                  color: 'rgba(0,0,0,0.4)',
-                  fontWeight: '300',
-                  lineHeight: '1.5',
-                }}
-              >
+              <p style={{ fontSize: '16px', color: 'rgba(0,0,0,0.4)', fontWeight: '300', lineHeight: '1.5' }}>
                 {typo.description.slice(0, 80)}...
               </p>
             </div>
             <span
-              style={{
-                fontSize: '13px',
-                letterSpacing: '3px',
-                textTransform: 'uppercase',
-                color: 'rgba(0,0,0,0.3)',
-              }}
+              style={{ fontSize: '13px', letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)' }}
             >
               {typo.subtitle}
             </span>
@@ -1028,61 +365,50 @@ function TableOfContents({ typologies, onNavigate }) {
 // ─── Typology Spread ───
 function TypologySpread({ typo, index, editMode, onUpdate }) {
   const isEven = index % 2 === 0;
+  const [activeImg, setActiveImg] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const images = typo.images || [];
 
-  const handleGalleriesChange = (g) => onUpdate(typo.id, 'galleries', g);
+  useEffect(() => {
+    if (activeImg >= images.length && images.length > 0) setActiveImg(images.length - 1);
+    if (images.length === 0) setActiveImg(0);
+  }, [images.length, activeImg]);
 
-  const archOverlay = (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: '24px',
-        right: isEven ? '24px' : 'auto',
-        left: isEven ? 'auto' : '24px',
-        maxWidth: '300px',
-        padding: '20px',
-        background: 'rgba(0,0,0,0.65)',
-        backdropFilter: 'blur(10px)',
-        borderRight: `3px solid ${typo.accentColor}`,
-        zIndex: 6,
-        borderRadius: '4px',
-      }}
-    >
-      <p
-        style={{
-          fontSize: '13px',
-          letterSpacing: '2px',
-          textTransform: 'uppercase',
-          color: typo.accentColor,
-          marginBottom: '8px',
-          fontWeight: '600',
-        }}
-      >
-        {'פרשנות אדריכלית'}
-      </p>
-      <EditableText
-        value={typo.architectureInterpretation}
-        onSave={(v) => onUpdate(typo.id, 'architectureInterpretation', v)}
-        editMode={editMode}
-        style={{
-          fontSize: '16px',
-          color: COLORS.white,
-          lineHeight: '1.7',
-          fontWeight: '300',
-        }}
-      />
-    </div>
-  );
+  const addImageFiles = async (fileList) => {
+    const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    const srcs = await Promise.all(
+      files.map(
+        (f) =>
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(f);
+          })
+      )
+    );
+    onUpdate(typo.id, 'images', [...images, ...srcs]);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    addImageFiles(e.dataTransfer.files);
+  };
+
+  const handleRemoveImage = (idx) => {
+    onUpdate(
+      typo.id,
+      'images',
+      images.filter((_, i) => i !== idx)
+    );
+  };
+
+  const goNext = () => setActiveImg((i) => Math.min(images.length - 1, i + 1));
+  const goPrev = () => setActiveImg((i) => Math.max(0, i - 1));
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-      }}
-    >
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header bar */}
       <div
         style={{
@@ -1097,14 +423,7 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span
-            style={{
-              fontSize: '52px',
-              fontWeight: '100',
-              color: typo.accentColor,
-              lineHeight: '1',
-            }}
-          >
+          <span style={{ fontSize: '52px', fontWeight: '100', color: typo.accentColor, lineHeight: '1' }}>
             {typo.number}
           </span>
           <div style={{ width: '1px', height: '32px', background: COLORS.industryGray }} />
@@ -1121,36 +440,326 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
           </span>
         </div>
         <span
-          style={{
-            fontSize: '13px',
-            letterSpacing: '3px',
-            color: 'rgba(0,0,0,0.25)',
-            textTransform: 'uppercase',
-          }}
+          style={{ fontSize: '13px', letterSpacing: '3px', color: 'rgba(0,0,0,0.25)', textTransform: 'uppercase' }}
         >
           {'המנהל של אשדוד מחר'}
         </span>
       </div>
 
       {/* Main content */}
-      <div
-        style={{
-          flex: 1,
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          minHeight: 0,
-          overflow: 'hidden',
-        }}
-      >
-        {/* Media side */}
-        <div style={{ order: isEven ? 1 : 2, position: 'relative', minHeight: 0 }}>
-          <MediaGallery
-            galleries={typo.galleries}
-            editMode={editMode}
-            onChange={handleGalleriesChange}
-            accentColor={typo.accentColor}
-            overlay={archOverlay}
-          />
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', minHeight: 0, overflow: 'hidden' }}>
+        {/* Image side */}
+        <div
+          style={{
+            order: isEven ? 1 : 2,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            position: 'relative',
+          }}
+        >
+          {/* Filmstrip main frame */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              position: 'relative',
+              overflow: 'hidden',
+              background: '#111',
+              border: isDragOver ? `3px solid ${typo.accentColor}` : '3px solid transparent',
+              transition: 'border 0.2s',
+            }}
+            onDrop={editMode ? handleDrop : undefined}
+            onDragOver={
+              editMode
+                ? (e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                  }
+                : undefined
+            }
+            onDragLeave={editMode ? () => setIsDragOver(false) : undefined}
+          >
+            {/* Video (if set) */}
+            {typo.videoSrc && (
+              <video
+                src={typo.videoSrc}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  zIndex: 0,
+                }}
+              />
+            )}
+
+            {/* Image filmstrip — slides right-to-left */}
+            {images.length > 0
+              ? images.map((src, i) => (
+                  <div
+                    key={src + i}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      transform: `translateX(${(i - activeImg) * 100}%)`,
+                      transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                      zIndex: 1,
+                    }}
+                  >
+                    <img
+                      src={src}
+                      alt={typo.title}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+                  </div>
+                ))
+              : !typo.videoSrc && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#666',
+                      fontSize: '20px',
+                      zIndex: 1,
+                    }}
+                  >
+                    {editMode ? 'גררו תמונות לכאן' : 'אין תמונות'}
+                  </div>
+                )}
+
+            {/* Filmstrip arrows */}
+            {images.length > 1 && activeImg > 0 && (
+              <button
+                onClick={goPrev}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(255,255,255,0.25)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                }}
+              >
+                <ChevronRight size={22} />
+              </button>
+            )}
+            {images.length > 1 && activeImg < images.length - 1 && (
+              <button
+                onClick={goNext}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(255,255,255,0.25)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                }}
+              >
+                <ChevronLeft size={22} />
+              </button>
+            )}
+
+            {/* Architecture overlay */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '24px',
+                right: isEven ? '24px' : 'auto',
+                left: isEven ? 'auto' : '24px',
+                maxWidth: '300px',
+                padding: '20px',
+                background: 'rgba(0,0,0,0.65)',
+                backdropFilter: 'blur(10px)',
+                borderRight: `3px solid ${typo.accentColor}`,
+                zIndex: 12,
+                borderRadius: '4px',
+              }}
+            >
+              <p
+                style={{
+                  fontSize: '13px',
+                  letterSpacing: '2px',
+                  textTransform: 'uppercase',
+                  color: typo.accentColor,
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                }}
+              >
+                {'פרשנות אדריכלית'}
+              </p>
+              <EditableText
+                value={typo.architectureInterpretation}
+                onSave={(v) => onUpdate(typo.id, 'architectureInterpretation', v)}
+                editMode={editMode}
+                style={{ fontSize: '16px', color: COLORS.white, lineHeight: '1.7', fontWeight: '300' }}
+              />
+            </div>
+
+            {/* Drag overlay */}
+            {editMode && isDragOver && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(42,155,159,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 20,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    background: 'rgba(0,0,0,0.7)',
+                    color: '#fff',
+                    padding: '16px 32px',
+                    borderRadius: '12px',
+                    fontSize: '20px',
+                  }}
+                >
+                  {'שחררו כאן'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Thumbnail strip */}
+          <div
+            style={{
+              flexShrink: 0,
+              display: 'flex',
+              gap: '8px',
+              padding: '10px 12px',
+              overflowX: 'auto',
+              background: '#1a1a1a',
+              alignItems: 'center',
+            }}
+          >
+            {images.map((src, idx) => (
+              <div
+                key={src + idx}
+                onClick={() => setActiveImg(idx)}
+                style={{
+                  position: 'relative',
+                  flexShrink: 0,
+                  height: '72px',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  border:
+                    idx === activeImg
+                      ? `3px solid ${typo.accentColor}`
+                      : '3px solid transparent',
+                  transition: 'border 0.2s',
+                }}
+              >
+                <img
+                  src={src}
+                  alt=""
+                  style={{
+                    height: '100%',
+                    width: 'auto',
+                    display: 'block',
+                    objectFit: 'cover',
+                  }}
+                />
+                {editMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveImage(idx);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '3px',
+                      right: '3px',
+                      background: 'rgba(200,90,54,0.9)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {editMode && (
+              <label
+                style={{
+                  flexShrink: 0,
+                  width: '72px',
+                  height: '72px',
+                  border: '2px dashed rgba(255,255,255,0.3)',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: '11px',
+                  gap: '4px',
+                }}
+              >
+                <Plus size={18} />
+                {'תמונה'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={(e) => addImageFiles(e.target.files)}
+                />
+              </label>
+            )}
+          </div>
         </div>
 
         {/* Text side */}
@@ -1165,13 +774,7 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
             gap: '20px',
           }}
         >
-          <div
-            style={{
-              width: '44px',
-              height: '3px',
-              background: typo.accentColor,
-            }}
-          />
+          <div style={{ width: '44px', height: '3px', background: typo.accentColor }} />
 
           <EditableText
             value={typo.title}
@@ -1198,7 +801,6 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
             }}
           />
 
-          {/* Clothing interpretation */}
           <div
             style={{
               padding: '20px 0',
@@ -1232,14 +834,7 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
             />
           </div>
 
-          {/* Ashdod context */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '14px',
-              alignItems: 'flex-start',
-            }}
-          >
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
             <div
               style={{
                 width: '3px',
@@ -1266,11 +861,7 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
                 value={typo.ashdodContext}
                 onSave={(v) => onUpdate(typo.id, 'ashdodContext', v)}
                 editMode={editMode}
-                style={{
-                  fontSize: '18px',
-                  color: 'rgba(0,0,0,0.6)',
-                  lineHeight: '1.7',
-                }}
+                style={{ fontSize: '18px', color: 'rgba(0,0,0,0.6)', lineHeight: '1.7' }}
               />
             </div>
           </div>
@@ -1296,14 +887,7 @@ function ClosingPage() {
         textAlign: 'center',
       }}
     >
-      <div
-        style={{
-          width: '60px',
-          height: '2px',
-          background: COLORS.apricotRed,
-          margin: '0 auto 40px',
-        }}
-      />
+      <div style={{ width: '60px', height: '2px', background: COLORS.apricotRed, margin: '0 auto 40px' }} />
       <h2
         style={{
           fontSize: 'clamp(28px, 5vw, 56px)',
@@ -1326,41 +910,15 @@ function ClosingPage() {
       >
         {'השינוי שאנחנו רוצים לראות'}
       </h2>
-      <div
-        style={{
-          width: '120px',
-          height: '1px',
-          background: 'rgba(255,255,255,0.2)',
-          margin: '0 auto 40px',
-        }}
-      />
-      <p
-        style={{
-          fontSize: '18px',
-          color: 'rgba(255,255,255,0.5)',
-          letterSpacing: '2px',
-        }}
-      >
+      <div style={{ width: '120px', height: '1px', background: 'rgba(255,255,255,0.2)', margin: '0 auto 40px' }} />
+      <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.5)', letterSpacing: '2px' }}>
         {'מצוינות עם נשמה — אקוסיסטם של משמעות'}
       </p>
-      <div
-        style={{
-          marginTop: '60px',
-          display: 'flex',
-          gap: '24px',
-          justifyContent: 'center',
-        }}
-      >
+      <div style={{ marginTop: '60px', display: 'flex', gap: '24px', justifyContent: 'center' }}>
         {['#2a9b9f', '#c85a36', '#8a9b7f', '#1a4d7a', '#2a9b9f', '#c85a36'].map((c, i) => (
           <div
             key={i}
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: c,
-              opacity: 0.6,
-            }}
+            style={{ width: '10px', height: '10px', borderRadius: '50%', background: c, opacity: 0.6 }}
           />
         ))}
       </div>
@@ -1421,9 +979,7 @@ function PageDots({ current, total, onGoTo }) {
 export default function AshdodMagazine() {
   const [currentPage, setCurrentPage] = useState(0);
   const [editMode, setEditMode] = useState(false);
-  const [typologies, setTypologies] = useState(() =>
-    DEFAULT_TYPOLOGIES.map(migrateTypology)
-  );
+  const [typologies, setTypologies] = useState(DEFAULT_TYPOLOGIES);
   const [saveMsg, setSaveMsg] = useState(false);
   const touchStart = useRef(null);
 
@@ -1431,13 +987,12 @@ export default function AshdodMagazine() {
     const saved = localStorage.getItem('ashdod-magazine-data');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        setTypologies(parsed.map(migrateTypology));
+        setTypologies(JSON.parse(saved).map(migrateTypology));
       } catch {}
     }
   }, []);
 
-  // Paste handler — adds media to current typology's first gallery
+  // Paste handler — adds images to current typology
   useEffect(() => {
     if (!editMode) return;
     const handler = async (e) => {
@@ -1446,7 +1001,7 @@ export default function AshdodMagazine() {
       if (!clipItems) return;
       const files = [];
       for (const item of clipItems) {
-        if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
+        if (item.type.startsWith('image/')) {
           const f = item.getAsFile();
           if (f) files.push(f);
         }
@@ -1454,18 +1009,18 @@ export default function AshdodMagazine() {
       if (!files.length) return;
       e.preventDefault();
       const typoIdx = currentPage - 2;
-      const newItems = await Promise.all(files.map(fileToItem));
+      const srcs = await Promise.all(
+        files.map(
+          (f) =>
+            new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(f);
+            })
+        )
+      );
       setTypologies((prev) =>
-        prev.map((t, i) => {
-          if (i !== typoIdx) return t;
-          const gs = [...t.galleries];
-          if (gs.length === 0) {
-            gs.push({ id: genId(), name: 'גלריה ראשית', items: newItems });
-          } else {
-            gs[0] = { ...gs[0], items: [...gs[0].items, ...newItems] };
-          }
-          return { ...t, galleries: gs };
-        })
+        prev.map((t, i) => (i === typoIdx ? { ...t, images: [...(t.images || []), ...srcs] } : t))
       );
     };
     document.addEventListener('paste', handler);
@@ -1518,7 +1073,7 @@ export default function AshdodMagazine() {
     if (pageIndex === 0) return <CoverPage />;
     if (pageIndex === 1)
       return <TableOfContents typologies={typologies} onNavigate={navigateToTypology} />;
-    if (pageIndex >= 2 && pageIndex <= 7) {
+    if (pageIndex >= 2 && pageIndex <= 7)
       return (
         <TypologySpread
           typo={typologies[pageIndex - 2]}
@@ -1527,7 +1082,6 @@ export default function AshdodMagazine() {
           onUpdate={updateTypology}
         />
       );
-    }
     if (pageIndex === 8) return <ClosingPage />;
     return null;
   };
@@ -1540,8 +1094,7 @@ export default function AshdodMagazine() {
         height: '100vh',
         overflow: 'hidden',
         position: 'relative',
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -1565,7 +1118,6 @@ export default function AshdodMagazine() {
         );
       })}
 
-      {/* Nav arrows */}
       {currentPage > 0 && (
         <button
           onClick={goPrev}
@@ -1586,7 +1138,6 @@ export default function AshdodMagazine() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            transition: 'background 0.2s',
           }}
         >
           <ChevronRight size={24} />
@@ -1612,7 +1163,6 @@ export default function AshdodMagazine() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            transition: 'background 0.2s',
           }}
         >
           <ChevronLeft size={24} />
@@ -1621,7 +1171,6 @@ export default function AshdodMagazine() {
 
       <PageDots current={currentPage} total={TOTAL_PAGES} onGoTo={goTo} />
 
-      {/* Edit mode toggle */}
       <button
         onClick={() => {
           if (editMode) handleSave();
@@ -1650,7 +1199,6 @@ export default function AshdodMagazine() {
         {editMode ? <Save size={20} /> : <Edit2 size={20} />}
       </button>
 
-      {/* Save confirmation */}
       {saveMsg && (
         <div
           style={{
@@ -1671,7 +1219,6 @@ export default function AshdodMagazine() {
         </div>
       )}
 
-      {/* Edit mode banner */}
       {editMode && (
         <div
           style={{
