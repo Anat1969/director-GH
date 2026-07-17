@@ -21,7 +21,10 @@ const DEFAULT_TYPOLOGIES = [
     architectureInterpretation: 'הנמל - תנועה, זרימה, גשרים בד',
     clothingInterpretation: 'שכבות שקופות, בדים חדשים, קווי תנועה אופקיים',
     ashdodContext: 'אזור התעשיה, טכנולוגיה, חדשנות שנשמרת בעדינות',
-    images: []
+    images: [
+      { id: 101, src: '/images/teacher-powerful-00.png', name: 'מורה חדשנות 1' },
+      { id: 102, src: '/images/teacher-powerful-02.png', name: 'מורה חדשנות 2' }
+    ]
   },
   {
     id: 2,
@@ -30,7 +33,10 @@ const DEFAULT_TYPOLOGIES = [
     architectureInterpretation: 'הפסיפס - בדים רבים בהרמוניה, צבעים מתגוונים',
     clothingInterpretation: 'בדים שונים יחד בחיבורים חזקים',
     ashdodContext: 'תרבויות רבות ועדות שונות בעיר אחת',
-    images: []
+    images: [
+      { id: 201, src: '/images/teacher-warm-00.png', name: 'מורה קהילה 1' },
+      { id: 202, src: '/images/teacher-warm-01.png', name: 'מורה קהילה 2' }
+    ]
   },
   {
     id: 3,
@@ -39,7 +45,10 @@ const DEFAULT_TYPOLOGIES = [
     architectureInterpretation: 'אוכל, אומנות, מוזיקה - חום וטוב',
     clothingInterpretation: 'צבעים מעבירים, קווי עקומה, פרטים לא צפויים',
     ashdodContext: 'תרבות אוכל, אומנות ומוזיקה בעיר',
-    images: []
+    images: [
+      { id: 301, src: '/images/teacher-warm-02.png', name: 'מורה יצירתיות 1' },
+      { id: 302, src: '/images/teacher-warm-03.png', name: 'מורה יצירתיות 2' }
+    ]
   },
   {
     id: 4,
@@ -48,7 +57,10 @@ const DEFAULT_TYPOLOGIES = [
     architectureInterpretation: 'גם וגם - ישן וחדש, דואליות ללא סתירה',
     clothingInterpretation: 'שכבות שונות בעומק, דואליות יפה',
     ashdodContext: 'חרדי חילוני, ימין שמאל, צעיר מבוגר - אשדוד היא כל זה',
-    images: []
+    images: [
+      { id: 401, src: '/images/teacher-male-00.png', name: 'מורה הכלה 1' },
+      { id: 402, src: '/images/teacher-male-01.png', name: 'מורה הכלה 2' }
+    ]
   },
   {
     id: 5,
@@ -57,7 +69,11 @@ const DEFAULT_TYPOLOGIES = [
     architectureInterpretation: 'השפך - טבע בעירוב עם כוח בנייה',
     clothingInterpretation: 'תפרים חזקים ברקע, מבנה יציב וקלילות',
     ashdodContext: 'הנמל שעמד במשברים, חוסן הקהילה',
-    images: []
+    images: [
+      { id: 501, src: '/images/teacher-male-02.png', name: 'מורה חוסן 1' },
+      { id: 502, src: '/images/teacher-female-01.png', name: 'מורה חוסן 2' },
+      { id: 503, src: '/images/teacher-male-03b.png', name: 'מורה חוסן 3' }
+    ]
   },
   {
     id: 6,
@@ -66,7 +82,10 @@ const DEFAULT_TYPOLOGIES = [
     architectureInterpretation: 'נחל לכיש, הנמל, החוף - תנועה ופתיחות',
     clothingInterpretation: 'איזון בין יציבה לתנועה, קדימה בבטחון',
     ashdodContext: 'אשדוד בעיקר, אבל בעיניים על העולם',
-    images: []
+    images: [
+      { id: 601, src: '/images/teacher-male-03.png', name: 'מורה עיר ועולם 1' },
+      { id: 602, src: '/images/teacher-powerful-03.png', name: 'מורה עיר ועולם 2' }
+    ]
   }
 ];
 
