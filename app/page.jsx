@@ -17,16 +17,18 @@ const COLORS = {
 };
 
 function migrateTypology(t) {
-  if (t.images) return t;
+  const result = { ...t };
   if (t.galleries) {
     const imgs = [];
     t.galleries.forEach((g) => g.items?.forEach((item) => {
       if (item.type === 'image') imgs.push(item.src);
     }));
-    const { galleries, ...rest } = t;
-    return { ...rest, images: imgs, videoSrc: t.videoSrc || '' };
+    delete result.galleries;
+    result.images = imgs;
   }
-  return { ...t, images: [], videoSrc: '' };
+  if (!result.images) result.images = [];
+  if (!result.videos) result.videos = result.videoSrc ? [result.videoSrc] : [];
+  return result;
 }
 
 const DEFAULT_TYPOLOGIES = [
@@ -364,48 +366,56 @@ function TableOfContents({ typologies, onNavigate }) {
 
 // ─── Typology Spread ───
 function TypologySpread({ typo, index, editMode, onUpdate }) {
-  const isEven = index % 2 === 0;
-  const [activeImg, setActiveImg] = useState(0);
+  const [activeMedia, setActiveMedia] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const images = typo.images || [];
+  const videos = typo.videos || (typo.videoSrc ? [typo.videoSrc] : []);
+  const media = [...images.map((src) => ({ type: 'image', src })), ...videos.map((src) => ({ type: 'video', src }))];
 
   useEffect(() => {
-    if (activeImg >= images.length && images.length > 0) setActiveImg(images.length - 1);
-    if (images.length === 0) setActiveImg(0);
-  }, [images.length, activeImg]);
+    if (activeMedia >= media.length && media.length > 0) setActiveMedia(media.length - 1);
+    if (media.length === 0) setActiveMedia(0);
+  }, [media.length, activeMedia]);
 
-  const addImageFiles = async (fileList) => {
-    const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
-    if (!files.length) return;
-    const srcs = await Promise.all(
-      files.map(
-        (f) =>
-          new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(f);
-          })
-      )
-    );
-    onUpdate(typo.id, 'images', [...images, ...srcs]);
+  const addFiles = async (fileList) => {
+    const imgFiles = [];
+    const vidFiles = [];
+    Array.from(fileList).forEach((f) => {
+      if (f.type.startsWith('image/')) imgFiles.push(f);
+      else if (f.type.startsWith('video/')) vidFiles.push(f);
+    });
+    const toDataURL = (f) => new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(f);
+    });
+    if (imgFiles.length) {
+      const srcs = await Promise.all(imgFiles.map(toDataURL));
+      onUpdate(typo.id, 'images', [...images, ...srcs]);
+    }
+    if (vidFiles.length) {
+      const srcs = await Promise.all(vidFiles.map(toDataURL));
+      onUpdate(typo.id, 'videos', [...videos, ...srcs]);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragOver(false);
-    addImageFiles(e.dataTransfer.files);
+    addFiles(e.dataTransfer.files);
   };
 
-  const handleRemoveImage = (idx) => {
-    onUpdate(
-      typo.id,
-      'images',
-      images.filter((_, i) => i !== idx)
-    );
+  const handleRemoveMedia = (idx) => {
+    if (idx < images.length) {
+      onUpdate(typo.id, 'images', images.filter((_, i) => i !== idx));
+    } else {
+      const vidIdx = idx - images.length;
+      onUpdate(typo.id, 'videos', videos.filter((_, i) => i !== vidIdx));
+    }
   };
 
-  const goNext = () => setActiveImg((i) => Math.min(images.length - 1, i + 1));
-  const goPrev = () => setActiveImg((i) => Math.max(0, i - 1));
+  const goNext = () => setActiveMedia((i) => Math.min(media.length - 1, i + 1));
+  const goPrev = () => setActiveMedia((i) => Math.max(0, i - 1));
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -446,330 +456,16 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
         </span>
       </div>
 
-      {/* Main content */}
+      {/* Main content — images always LEFT, text always RIGHT */}
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', minHeight: 0, overflow: 'hidden' }}>
-        {/* Image side */}
+        {/* Text side — always RIGHT (order 1 in RTL = right) */}
         <div
           style={{
-            order: isEven ? 1 : 2,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            position: 'relative',
-          }}
-        >
-          {/* Filmstrip main frame */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              position: 'relative',
-              overflow: 'hidden',
-              background: '#111',
-              border: isDragOver ? `3px solid ${typo.accentColor}` : '3px solid transparent',
-              transition: 'border 0.2s',
-            }}
-            onDrop={editMode ? handleDrop : undefined}
-            onDragOver={
-              editMode
-                ? (e) => {
-                    e.preventDefault();
-                    setIsDragOver(true);
-                  }
-                : undefined
-            }
-            onDragLeave={editMode ? () => setIsDragOver(false) : undefined}
-          >
-            {/* Video (if set) */}
-            {typo.videoSrc && (
-              <video
-                src={typo.videoSrc}
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  zIndex: 0,
-                }}
-              />
-            )}
-
-            {/* Image filmstrip — slides right-to-left */}
-            {images.length > 0
-              ? images.map((src, i) => (
-                  <div
-                    key={src + i}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      transform: `translateX(${(i - activeImg) * 100}%)`,
-                      transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                      zIndex: 1,
-                    }}
-                  >
-                    <img
-                      src={src}
-                      alt={typo.title}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        display: 'block',
-                      }}
-                    />
-                  </div>
-                ))
-              : !typo.videoSrc && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#666',
-                      fontSize: '20px',
-                      zIndex: 1,
-                    }}
-                  >
-                    {editMode ? 'גררו תמונות לכאן' : 'אין תמונות'}
-                  </div>
-                )}
-
-            {/* Filmstrip arrows */}
-            {images.length > 1 && activeImg > 0 && (
-              <button
-                onClick={goPrev}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(255,255,255,0.25)',
-                  backdropFilter: 'blur(4px)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 10,
-                }}
-              >
-                <ChevronRight size={22} />
-              </button>
-            )}
-            {images.length > 1 && activeImg < images.length - 1 && (
-              <button
-                onClick={goNext}
-                style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(255,255,255,0.25)',
-                  backdropFilter: 'blur(4px)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 10,
-                }}
-              >
-                <ChevronLeft size={22} />
-              </button>
-            )}
-
-            {/* Architecture overlay */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '24px',
-                right: isEven ? '24px' : 'auto',
-                left: isEven ? 'auto' : '24px',
-                maxWidth: '300px',
-                padding: '20px',
-                background: 'rgba(0,0,0,0.65)',
-                backdropFilter: 'blur(10px)',
-                borderRight: `3px solid ${typo.accentColor}`,
-                zIndex: 12,
-                borderRadius: '4px',
-              }}
-            >
-              <p
-                style={{
-                  fontSize: '13px',
-                  letterSpacing: '2px',
-                  textTransform: 'uppercase',
-                  color: typo.accentColor,
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                }}
-              >
-                {'פרשנות אדריכלית'}
-              </p>
-              <EditableText
-                value={typo.architectureInterpretation}
-                onSave={(v) => onUpdate(typo.id, 'architectureInterpretation', v)}
-                editMode={editMode}
-                style={{ fontSize: '16px', color: COLORS.white, lineHeight: '1.7', fontWeight: '300' }}
-              />
-            </div>
-
-            {/* Drag overlay */}
-            {editMode && isDragOver && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'rgba(42,155,159,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 20,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div
-                  style={{
-                    background: 'rgba(0,0,0,0.7)',
-                    color: '#fff',
-                    padding: '16px 32px',
-                    borderRadius: '12px',
-                    fontSize: '20px',
-                  }}
-                >
-                  {'שחררו כאן'}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Thumbnail strip */}
-          <div
-            style={{
-              flexShrink: 0,
-              display: 'flex',
-              gap: '8px',
-              padding: '10px 12px',
-              overflowX: 'auto',
-              background: '#1a1a1a',
-              alignItems: 'center',
-            }}
-          >
-            {images.map((src, idx) => (
-              <div
-                key={src + idx}
-                onClick={() => setActiveImg(idx)}
-                style={{
-                  position: 'relative',
-                  flexShrink: 0,
-                  height: '72px',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                  border:
-                    idx === activeImg
-                      ? `3px solid ${typo.accentColor}`
-                      : '3px solid transparent',
-                  transition: 'border 0.2s',
-                }}
-              >
-                <img
-                  src={src}
-                  alt=""
-                  style={{
-                    height: '100%',
-                    width: 'auto',
-                    display: 'block',
-                    objectFit: 'cover',
-                  }}
-                />
-                {editMode && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveImage(idx);
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: '3px',
-                      right: '3px',
-                      background: 'rgba(200,90,54,0.9)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      width: '20px',
-                      height: '20px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 0,
-                    }}
-                  >
-                    <X size={11} />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {editMode && (
-              <label
-                style={{
-                  flexShrink: 0,
-                  width: '72px',
-                  height: '72px',
-                  border: '2px dashed rgba(255,255,255,0.3)',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: '11px',
-                  gap: '4px',
-                }}
-              >
-                <Plus size={18} />
-                {'תמונה'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => addImageFiles(e.target.files)}
-                />
-              </label>
-            )}
-          </div>
-        </div>
-
-        {/* Text side */}
-        <div
-          style={{
-            order: isEven ? 2 : 1,
+            order: 1,
             padding: '32px 44px',
             display: 'flex',
             flexDirection: 'column',
-            background: isEven ? COLORS.cream : COLORS.white,
+            background: COLORS.cream,
             overflowY: 'auto',
             gap: '20px',
           }}
@@ -864,6 +560,331 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
                 style={{ fontSize: '18px', color: 'rgba(0,0,0,0.6)', lineHeight: '1.7' }}
               />
             </div>
+          </div>
+
+          {/* Architecture interpretation — gold creative styling */}
+          <div
+            style={{
+              marginTop: 'auto',
+              padding: '24px 20px',
+              background: 'linear-gradient(135deg, rgba(191,155,48,0.08) 0%, rgba(212,175,55,0.15) 100%)',
+              borderTop: '2px solid #d4af37',
+              borderRadius: '0 0 0 12px',
+            }}
+          >
+            <p
+              style={{
+                fontSize: '16px',
+                letterSpacing: '3px',
+                textTransform: 'uppercase',
+                color: '#d4af37',
+                marginBottom: '10px',
+                fontWeight: '700',
+              }}
+            >
+              {'פרשנות אדריכלית'}
+            </p>
+            <EditableText
+              value={typo.architectureInterpretation}
+              onSave={(v) => onUpdate(typo.id, 'architectureInterpretation', v)}
+              editMode={editMode}
+              style={{
+                fontSize: 'clamp(18px, 2vw, 22px)',
+                color: '#b8860b',
+                lineHeight: '1.8',
+                fontWeight: '400',
+                fontStyle: 'italic',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Media side — always LEFT (order 2 in RTL = left) */}
+        <div
+          style={{
+            order: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            position: 'relative',
+          }}
+        >
+          {/* Filmstrip main frame */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              position: 'relative',
+              overflow: 'hidden',
+              background: COLORS.cream,
+              border: isDragOver ? `3px solid ${typo.accentColor}` : '3px solid transparent',
+              transition: 'border 0.2s',
+            }}
+            onDrop={editMode ? handleDrop : undefined}
+            onDragOver={
+              editMode
+                ? (e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                  }
+                : undefined
+            }
+            onDragLeave={editMode ? () => setIsDragOver(false) : undefined}
+          >
+            {/* Media filmstrip — slides right-to-left */}
+            {media.length > 0
+              ? media.map((item, i) => (
+                  <div
+                    key={item.src + i}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      transform: `translateX(${(i - activeMedia) * 100}%)`,
+                      transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                      zIndex: 1,
+                    }}
+                  >
+                    {item.type === 'video' ? (
+                      <video
+                        src={item.src}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          display: 'block',
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={item.src}
+                        alt={typo.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          display: 'block',
+                        }}
+                      />
+                    )}
+                  </div>
+                ))
+              : (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#999',
+                      fontSize: '20px',
+                      zIndex: 1,
+                    }}
+                  >
+                    {editMode ? 'גררו תמונות או סרטונים לכאן' : 'אין מדיה'}
+                  </div>
+                )}
+
+            {/* Filmstrip arrows */}
+            {media.length > 1 && activeMedia > 0 && (
+              <button
+                onClick={goPrev}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(0,0,0,0.25)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                }}
+              >
+                <ChevronRight size={22} />
+              </button>
+            )}
+            {media.length > 1 && activeMedia < media.length - 1 && (
+              <button
+                onClick={goNext}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(0,0,0,0.25)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                }}
+              >
+                <ChevronLeft size={22} />
+              </button>
+            )}
+
+            {/* Drag overlay */}
+            {editMode && isDragOver && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(42,155,159,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 20,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    background: 'rgba(0,0,0,0.7)',
+                    color: '#fff',
+                    padding: '16px 32px',
+                    borderRadius: '12px',
+                    fontSize: '20px',
+                  }}
+                >
+                  {'שחררו כאן'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Thumbnail strip — no dark background */}
+          <div
+            style={{
+              flexShrink: 0,
+              display: 'flex',
+              gap: '8px',
+              padding: '10px 12px',
+              overflowX: 'auto',
+              background: COLORS.offWhite,
+              alignItems: 'center',
+              borderTop: `1px solid ${COLORS.industryGray}`,
+            }}
+          >
+            {media.map((item, idx) => (
+              <div
+                key={item.src + idx}
+                onClick={() => setActiveMedia(idx)}
+                style={{
+                  position: 'relative',
+                  flexShrink: 0,
+                  height: '72px',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  border:
+                    idx === activeMedia
+                      ? `3px solid ${typo.accentColor}`
+                      : '3px solid transparent',
+                  transition: 'border 0.2s',
+                }}
+              >
+                {item.type === 'video' ? (
+                  <video
+                    src={item.src}
+                    muted
+                    style={{
+                      height: '100%',
+                      width: 'auto',
+                      display: 'block',
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={item.src}
+                    alt=""
+                    style={{
+                      height: '100%',
+                      width: 'auto',
+                      display: 'block',
+                      objectFit: 'cover',
+                    }}
+                  />
+                )}
+                {editMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveMedia(idx);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '3px',
+                      right: '3px',
+                      background: 'rgba(200,90,54,0.9)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {editMode && (
+              <label
+                style={{
+                  flexShrink: 0,
+                  width: '72px',
+                  height: '72px',
+                  border: `2px dashed ${COLORS.industryGray}`,
+                  borderRadius: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'rgba(0,0,0,0.4)',
+                  fontSize: '11px',
+                  gap: '4px',
+                }}
+              >
+                <Plus size={18} />
+                {'מדיה'}
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={(e) => addFiles(e.target.files)}
+                />
+              </label>
+            )}
           </div>
         </div>
       </div>
@@ -999,29 +1020,34 @@ export default function AshdodMagazine() {
       if (currentPage < 2 || currentPage > 7) return;
       const clipItems = e.clipboardData?.items;
       if (!clipItems) return;
-      const files = [];
+      const imgFiles = [];
+      const vidFiles = [];
       for (const item of clipItems) {
-        if (item.type.startsWith('image/')) {
-          const f = item.getAsFile();
-          if (f) files.push(f);
-        }
+        const f = item.getAsFile();
+        if (!f) continue;
+        if (f.type.startsWith('image/')) imgFiles.push(f);
+        else if (f.type.startsWith('video/')) vidFiles.push(f);
       }
-      if (!files.length) return;
+      if (!imgFiles.length && !vidFiles.length) return;
       e.preventDefault();
       const typoIdx = currentPage - 2;
-      const srcs = await Promise.all(
-        files.map(
-          (f) =>
-            new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.readAsDataURL(f);
-            })
-        )
-      );
-      setTypologies((prev) =>
-        prev.map((t, i) => (i === typoIdx ? { ...t, images: [...(t.images || []), ...srcs] } : t))
-      );
+      const toDataURL = (f) => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(f);
+      });
+      if (imgFiles.length) {
+        const srcs = await Promise.all(imgFiles.map(toDataURL));
+        setTypologies((prev) =>
+          prev.map((t, i) => (i === typoIdx ? { ...t, images: [...(t.images || []), ...srcs] } : t))
+        );
+      }
+      if (vidFiles.length) {
+        const srcs = await Promise.all(vidFiles.map(toDataURL));
+        setTypologies((prev) =>
+          prev.map((t, i) => (i === typoIdx ? { ...t, videos: [...(t.videos || []), ...srcs] } : t))
+        );
+      }
     };
     document.addEventListener('paste', handler);
     return () => document.removeEventListener('paste', handler);
