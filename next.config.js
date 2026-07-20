@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: 'export',
+  basePath: '/director-GH',
+  assetPrefix: '/director-GH/',
+  images: {
+    unoptimized: true,
+  },
 };
 
 module.exports = nextConfig;
