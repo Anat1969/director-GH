@@ -16,6 +16,39 @@ const COLORS = {
   darkBlue: '#0d2b45',
 };
 
+const DB_NAME = 'ashdod-magazine';
+const DB_STORE = 'data';
+const DB_KEY = 'typologies';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveToIDB(data) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put(data, DB_KEY);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function loadFromIDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).get(DB_KEY);
+    req.onsuccess = () => { db.close(); resolve(req.result || null); };
+    req.onerror = () => { db.close(); reject(req.error); };
+  });
+}
+
 function migrateTypology(t) {
   const result = { ...t };
   if (t.galleries) {
@@ -1005,12 +1038,21 @@ export default function AshdodMagazine() {
   const touchStart = useRef(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('ashdod-magazine-data');
-    if (saved) {
-      try {
-        setTypologies(JSON.parse(saved).map(migrateTypology));
-      } catch {}
-    }
+    loadFromIDB().then((saved) => {
+      if (saved) {
+        try {
+          const data = Array.isArray(saved) ? saved : JSON.parse(saved);
+          setTypologies(data.map(migrateTypology));
+        } catch {}
+      } else {
+        const legacy = localStorage.getItem('ashdod-magazine-data');
+        if (legacy) {
+          try {
+            setTypologies(JSON.parse(legacy).map(migrateTypology));
+          } catch {}
+        }
+      }
+    }).catch(() => {});
   }, []);
 
   // Paste handler — adds images to current typology
@@ -1088,9 +1130,13 @@ export default function AshdodMagazine() {
   }, []);
 
   const handleSave = () => {
-    localStorage.setItem('ashdod-magazine-data', JSON.stringify(typologies));
-    setSaveMsg(true);
-    setTimeout(() => setSaveMsg(false), 2000);
+    saveToIDB(typologies).then(() => {
+      setSaveMsg(true);
+      setTimeout(() => setSaveMsg(false), 2000);
+    }).catch(() => {
+      setSaveMsg(true);
+      setTimeout(() => setSaveMsg(false), 2000);
+    });
   };
 
   const navigateToTypology = (id) => goTo(id + 1);
