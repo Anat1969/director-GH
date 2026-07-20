@@ -401,9 +401,25 @@ function TableOfContents({ typologies, onNavigate }) {
 function TypologySpread({ typo, index, editMode, onUpdate }) {
   const [activeMedia, setActiveMedia] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState(null);
   const images = typo.images || [];
   const videos = typo.videos || (typo.videoSrc ? [typo.videoSrc] : []);
   const media = [...images.map((src) => ({ type: 'image', src })), ...videos.map((src) => ({ type: 'video', src }))];
+
+  const reorderMedia = (fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    const reordered = [...media];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const newImages = reordered.filter((m) => m.type === 'image').map((m) => m.src);
+    const newVideos = reordered.filter((m) => m.type === 'video').map((m) => m.src);
+    onUpdate(typo.id, 'images', newImages);
+    onUpdate(typo.id, 'videos', newVideos);
+    if (activeMedia === fromIdx) setActiveMedia(toIdx);
+    else if (fromIdx < activeMedia && toIdx >= activeMedia) setActiveMedia(activeMedia - 1);
+    else if (fromIdx > activeMedia && toIdx <= activeMedia) setActiveMedia(activeMedia + 1);
+  };
 
   useEffect(() => {
     if (activeMedia >= media.length && media.length > 0) setActiveMedia(media.length - 1);
@@ -822,19 +838,42 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
             {media.map((item, idx) => (
               <div
                 key={item.src + idx}
+                draggable={editMode}
                 onClick={() => setActiveMedia(idx)}
+                onDragStart={editMode ? (e) => {
+                  setDragIdx(idx);
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', String(idx));
+                } : undefined}
+                onDragEnd={editMode ? () => { setDragIdx(null); setDropTargetIdx(null); } : undefined}
+                onDragOver={editMode ? (e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragIdx !== null && dragIdx !== idx) setDropTargetIdx(idx);
+                } : undefined}
+                onDragLeave={editMode ? () => setDropTargetIdx((prev) => prev === idx ? null : prev) : undefined}
+                onDrop={editMode ? (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragIdx !== null && dragIdx !== idx) reorderMedia(dragIdx, idx);
+                  setDragIdx(null);
+                  setDropTargetIdx(null);
+                } : undefined}
                 style={{
                   position: 'relative',
                   flexShrink: 0,
                   height: '72px',
-                  cursor: 'pointer',
+                  cursor: editMode ? 'grab' : 'pointer',
                   borderRadius: '4px',
                   overflow: 'hidden',
                   border:
-                    idx === activeMedia
-                      ? `3px solid ${typo.accentColor}`
-                      : '3px solid transparent',
-                  transition: 'border 0.2s',
+                    dropTargetIdx === idx && dragIdx !== null
+                      ? `3px solid ${COLORS.apricotRed}`
+                      : idx === activeMedia
+                        ? `3px solid ${typo.accentColor}`
+                        : '3px solid transparent',
+                  opacity: dragIdx === idx ? 0.4 : 1,
+                  transition: 'border 0.2s, opacity 0.2s',
                 }}
               >
                 {item.type === 'video' ? (
@@ -846,17 +885,20 @@ function TypologySpread({ typo, index, editMode, onUpdate }) {
                       width: 'auto',
                       display: 'block',
                       objectFit: 'cover',
+                      pointerEvents: 'none',
                     }}
                   />
                 ) : (
                   <img
                     src={item.src}
                     alt=""
+                    draggable={false}
                     style={{
                       height: '100%',
                       width: 'auto',
                       display: 'block',
                       objectFit: 'cover',
+                      pointerEvents: 'none',
                     }}
                   />
                 )}
