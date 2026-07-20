@@ -45,7 +45,7 @@ const DEFAULT_TYPOLOGIES = [
       'שכבות שקופות, בדים חדשים שלא נראו קודם, קווי תנועה אופקיים שמסמנים כיוון. הבד הוא כמו קוד — שקוף לעין אבל בנוי בדיוק.',
     ashdodContext:
       'אזור התעשייה, הטכנולוגיה, החדשנות שנשמרת בעדינות בין מפעלים ישנים לסטארטאפים חדשים.',
-    images: ['/images/teacher-male-00.png', '/images/teacher-male-01.png'],
+    images: [],
     videoSrc: '',
     accentColor: '#2a9b9f',
   },
@@ -62,7 +62,7 @@ const DEFAULT_TYPOLOGIES = [
       'בדים שונים יחד בחיבורים חזקים. כל טלאי מביא את הסיפור שלו, וביחד הם יוצרים שמיכה שמחממת את כולם.',
     ashdodContext:
       'תרבויות רבות ועדות שונות בעיר אחת. אשדוד היא פסיפס של קהילות — מרוקו, אתיופיה, רוסיה, צרפת — וכולן ביחד.',
-    images: ['/images/teacher-warm-00.png', '/images/teacher-warm-01.png'],
+    images: [],
     videoSrc: '',
     accentColor: '#c85a36',
   },
@@ -79,7 +79,7 @@ const DEFAULT_TYPOLOGIES = [
       'צבעים מעבירים, קווי עקומה, פרטים לא צפויים. הבגד הוא לא מה שציפית — הוא מה שלא ידעת שאתה רוצה.',
     ashdodContext:
       'תרבות אוכל, אומנות ומוזיקה בעיר. מהפסטיבלים ברובע הישן ועד הגלריות החדשות.',
-    images: ['/images/teacher-warm-02.png', '/images/teacher-warm-03.png'],
+    images: [],
     videoSrc: '',
     accentColor: '#8a9b7f',
   },
@@ -96,7 +96,7 @@ const DEFAULT_TYPOLOGIES = [
       'שכבות שונות בעומק, דואליות יפה. הבגד מכיל בתוכו סיפורים שונים — ישנים וחדשים, קלים וכבדים.',
     ashdodContext:
       'חרדי חילוני, ימין שמאל, צעיר מבוגר — אשדוד היא כל זה ביחד, בלי לוותר על אף חלק.',
-    images: ['/images/teacher-powerful-00.png', '/images/teacher-powerful-02.png'],
+    images: [],
     videoSrc: '',
     accentColor: '#1a4d7a',
   },
@@ -113,7 +113,7 @@ const DEFAULT_TYPOLOGIES = [
       'תפרים חזקים ברקע, מבנה יציב וקלילות. הבגד נראה קל אבל מחזיק חזק — כמו נייר שעמד בגשם.',
     ashdodContext:
       'הנמל שעמד במשברים, חוסן הקהילה שעברה מלחמות ועדיין עומדת.',
-    images: ['/images/teacher-male-02.png', '/images/teacher-male-03.png', '/images/teacher-male-03b.png'],
+    images: [],
     videoSrc: '',
     accentColor: '#c85a36',
   },
@@ -130,7 +130,7 @@ const DEFAULT_TYPOLOGIES = [
       'איזון בין יציבה לתנועה, קדימה בביטחון. הבגד מאפשר ללכת קדימה — רגליים על הקרקע, ראש בעננים.',
     ashdodContext:
       'אשדוד בעיקר, אבל בעיניים על העולם. מהנמל יוצאות ספינות לכל כיוון.',
-    images: ['/images/teacher-female-01.png', '/images/teacher-powerful-03.png'],
+    images: [],
     videoSrc: '',
     accentColor: '#2a9b9f',
   },
