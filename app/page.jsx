@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Edit2, Save, X, Plus, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Plus, Upload } from 'lucide-react';
 
 const COLORS = {
   harbourBlue: '#1a4d7a',
@@ -1181,6 +1181,22 @@ export default function AshdodMagazine() {
     });
   };
 
+  const menuRef = useRef(null);
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    menu.items = [{
+      label: editMode ? 'שמור וצא מעריכה' : 'מצב עריכה',
+      hint: editMode ? 'פעיל' : 'כבוי',
+      pressed: editMode,
+      onSelect: () => {
+        if (editMode) handleSave();
+        setEditMode(!editMode);
+      },
+    }];
+    menu.status = editMode ? 'מצב עריכה' : '';
+  });
+
   const navigateToTypology = (id) => goTo(id + 1);
 
   const renderPage = (pageIndex) => {
@@ -1285,40 +1301,15 @@ export default function AshdodMagazine() {
 
       <PageDots current={currentPage} total={TOTAL_PAGES} onGoTo={goTo} />
 
-      <button
-        onClick={() => {
-          if (editMode) handleSave();
-          setEditMode(!editMode);
-        }}
-        style={{
-          position: 'fixed',
-          top: '16px',
-          left: '16px',
-          zIndex: 1000,
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          border: 'none',
-          background: editMode ? COLORS.apricotRed : 'rgba(0,0,0,0.3)',
-          backdropFilter: 'blur(8px)',
-          color: COLORS.white,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background 0.3s',
-        }}
-        title={editMode ? 'שמור וצא מעריכה' : 'מצב עריכה'}
-      >
-        {editMode ? <Save size={20} /> : <Edit2 size={20} />}
-      </button>
+      {/* A&I logo button: edit mode lives inside it, no loose floating button */}
+      <ai-menu ref={menuRef} data-floating="" />
 
       {saveMsg && (
         <div
           style={{
             position: 'fixed',
-            top: '16px',
-            left: '68px',
+            top: '68px',
+            left: '16px',
             zIndex: 1000,
             background: COLORS.duneGreen,
             color: COLORS.white,
