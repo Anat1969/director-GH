@@ -8,6 +8,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="he" dir="rtl">
+      <head>
+        <script src="https://appofapp-gh.vercel.app/ai-menu.js"></script>
+      </head>
       <body>{children}</body>
     </html>
   );
